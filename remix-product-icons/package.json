@@ -1,0 +1,16 @@
+{
+  "name": "remix-product-icons",
+  "displayName": "Remix Product Icons",
+  "description": "RemixIcon line glyphs as a VS Code product icon theme.",
+  "version": "1.0.0",
+  "publisher": "local",
+  "license": "Apache-2.0",
+  "repository": { "type": "git", "url": "https://github.com/Remix-Design/RemixIcon" },
+  "engines": { "vscode": "^1.53.0" },
+  "categories": ["Themes"],
+  "contributes": {
+    "productIconThemes": [
+      { "id": "remix-product-icons", "label": "Remix Product Icons", "path": "./theme/remix-product-icons.json" }
+    ]
+  }
+}
