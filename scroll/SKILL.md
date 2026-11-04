@@ -5,7 +5,7 @@ description: Control Milo's Scroll, the desktop overlay that announces when Clau
 
 # Milo's Scroll
 
-Milo's Scroll shows a frosted-glass card with Milo and a court phrase when Claude Code needs attention. Green means news. Orange means Claude needs an answer. Click the card to jump back to the editor. macOS only.
+Milo's Scroll shows a frosted-glass card with Milo and a court phrase when Claude Code needs attention. Blue means news. Orange means Claude needs an answer. Click the card to jump back to the editor. macOS only.
 
 Files live in `~/.claude/milos-scroll/`:
 
@@ -24,6 +24,7 @@ Files live in `~/.claude/milos-scroll/`:
 | `position` | `top-center`, `top-left`, `top-right`, `bottom-center`, `bottom-left`, `bottom-right` | `top-center` |
 | `seconds` | Seconds on screen. `0` keeps it until clicked | `4` |
 | `all_screens` | `true` shows on every display, `false` only where the mouse is | `true` |
+| `only_when_away` | `true` stays quiet while the app Claude runs in (VS Code, terminal) is in front | `true` |
 
 ## What to do
 
@@ -33,14 +34,15 @@ Read `~/.claude/milos-scroll/config.json`, change only the keys the user asked f
 - "scroll on": `enabled: true`
 - "move the scroll to the bottom right": `position: "bottom-right"`
 - "keep it longer": raise `seconds`
+- "show it even when I'm in VS Code": `only_when_away: false`
 - "test scroll" or "show me the scroll": run `~/.claude/milos-scroll/scroll.sh test complete` (or `question`, `permission`, `idle`, `limit`)
 
 ## When it speaks
 
 | Claude Code event | Scroll type | Color |
 |---|---|---|
-| `Stop` | complete | green |
+| `Stop` | complete | blue |
 | `Notification` with `elicitation_dialog` | question | orange |
 | `PermissionRequest` | permission | orange |
-| `Notification` with `idle_prompt` (not within 1 h of a complete) | idle | green |
-| `PreCompact` | limit | green |
+| `Notification` with `idle_prompt` (not within 1 h of a complete) | idle | blue |
+| `PreCompact` | limit | blue |

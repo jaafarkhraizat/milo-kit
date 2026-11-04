@@ -1,6 +1,6 @@
 // Milo's Scroll: overlay. Frosted glass card with Milo and a court phrase.
-// Run by scroll.sh: osascript -l JavaScript overlay.js <hook-json> <slot> <bundle-id>
-// Green = news. Orange = Claude needs you (question / permission).
+// Run by scroll.sh: osascript -l JavaScript overlay.js - <slot> <bundle-id> <dir>  (hook JSON on stdin)
+// Blue = news. Orange = Claude needs you (question / permission).
 
 ObjC.import('Cocoa');
 
@@ -15,7 +15,7 @@ var PHRASES = {
   idle:       ['The hall is quiet, my lord', 'The men await your orders', 'All is still at the keep', 'The hearth burns low'],
   limit:      ['The stores run low, my lord', 'Supplies grow thin', 'The scribes trim the scrolls', 'The ledger is near full']
 };
-var DEFAULTS = { enabled: true, position: 'top-center', seconds: 4, all_screens: true };
+var DEFAULTS = { enabled: true, position: 'top-center', seconds: 4, all_screens: true, only_when_away: true };
 
 function readText(path) {
   var s = $.NSString.stringWithContentsOfFileEncodingError($(path), $.NSUTF8StringEncoding, null);
@@ -52,9 +52,16 @@ function scrollType(hook) {
   return '';
 }
 
+function readStdin() {
+  var data = $.NSFileHandle.fileHandleWithStandardInput.readDataToEndOfFile;
+  var s = $.NSString.alloc.initWithDataEncoding(data, $.NSUTF8StringEncoding);
+  return s.isNil() ? '' : ObjC.unwrap(s);
+}
+
 function run(argv) {
   var hook = {};
-  try { hook = JSON.parse(argv[0] || '{}'); } catch (e) {}
+  // "-" = hook JSON on stdin (scroll.sh); a JSON argument still works for older callers
+  try { hook = JSON.parse((argv[0] === '-' ? readStdin() : argv[0]) || '{}'); } catch (e) {}
   var slot = parseInt(argv[1], 10) || 0;
   var bundleId = argv[2] || '';
   var dir = ObjC.unwrap($(argv[3] || '').stringByStandardizingPath) ||
@@ -77,12 +84,18 @@ function run(argv) {
   }
   if (session && type === 'idle' && now - (parseFloat(readText(stamp)) || 0) < 3600) return;
 
+  // You are already in the app Claude runs in (VS Code, terminal): stay quiet.
+  if (cfg.only_when_away && !hook.test && bundleId) {
+    var front = $.NSWorkspace.sharedWorkspace.frontmostApplication;
+    if (front && !front.isNil() && ObjC.unwrap(front.bundleIdentifier) === bundleId) return;
+  }
+
   var pool = PHRASES[type];
   var phrase = pool[Math.floor(Math.random() * pool.length)];
   var realm = hook.test ? "Milo's Scroll" : String(hook.cwd || '').split('/').filter(Boolean).pop() || '';
   var urgent = type === 'question' || type === 'permission';
-  var tint = urgent ? rgb('#7a3510', 0.5) : rgb('#0f4a2c', 0.5);
-  var edge = urgent ? rgb('#e8875f', 0.45) : rgb('#5fc98d', 0.35);
+  var tint = urgent ? rgb('#7a3510', 0.5) : rgb('#14336e', 0.5);
+  var edge = urgent ? rgb('#e8875f', 0.45) : rgb('#82a9f5', 0.35);
 
   $.NSApplication.sharedApplication;
   $.NSApp.setActivationPolicy($.NSApplicationActivationPolicyAccessory);

@@ -15,5 +15,6 @@ slot=$(pgrep -f "$DIR/overlay.js" | wc -l | tr -d ' ')
 bundle="${__CFBundleIdentifier:-}"
 [ -z "$bundle" ] && [ "$TERM_PROGRAM" = vscode ] && bundle=com.microsoft.VSCode
 
-nohup osascript -l JavaScript "$DIR/overlay.js" "$input" "$slot" "$bundle" "$DIR" >/dev/null 2>&1 &
+# Hook JSON goes over stdin, not argv: argv is visible to every local user in `ps`, and Stop hooks carry Claude's last message.
+printf '%s' "$input" | nohup osascript -l JavaScript "$DIR/overlay.js" - "$slot" "$bundle" "$DIR" >/dev/null 2>&1 &
 exit 0

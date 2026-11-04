@@ -29,6 +29,20 @@ for (const key of PERSONAL) {
   if (text === before) console.warn(`note: ${key} not found (fine if you removed it)`);
 }
 text = text.replace(/\/\/ ── Existing prefs \(kept\) ─+/, '// ── Theme stack ───────────────────────────────────────');
+// Comments that point at files on this machine (mockups, backups, source folders) stay private:
+// drop the asides that hold a path, then any trailing "Older: / Mockup: …" note; if a path is still there, keep the title only.
+const PERSONAL_RE = /Archive Zero|\/Users\/|iCloud Drive|AZ\/|~\/|\.bak\b/;
+text = text.replace(/^([ \t]*\/\/)(.*)$/gm, (all, lead, body) => {
+  if (!PERSONAL_RE.test(body)) return all;
+  let b = body
+    .replace(/\s*\([^()]*(?:~\/|\/Users\/|Archive Zero|AZ\/)[^()]*\)/g, '')
+    .replace(/\s*(?:Mockup|Source|Older|Backups?|Generator)s?:.*$/i, '');
+  if (PERSONAL_RE.test(b)) b = ' ' + b.trim().split(/[:(]/)[0].trim();
+  return lead + b;
+});
+
+// workbench script imports point at this machine; install.js adds the kit's own import instead
+text = jsonc.applyEdits(text, jsonc.modify(text, ['custom-ui-style.external.imports'], undefined, { formattingOptions: { insertSpaces: true, tabSize: 2, eol: '\n' } }));
 
 const avatar = `"'${initials}'"`;
 const avatarCount = text.split(avatar).length - 1;
@@ -49,6 +63,8 @@ const parsed = jsonc.parse(text, errors, { allowTrailingComma: true });
 if (errors.length) { console.error('parse errors:', errors.slice(0, 5)); process.exit(1); }
 if (text.includes(`'${initials}'`)) { console.error(`initials '${initials}' still present`); process.exit(1); }
 if (/Library\/Application Support/.test(text)) { console.error('machine-specific path still present'); process.exit(1); }
+const personal = /Archive Zero|\/Users\/|iCloud Drive|AZ\/Tools|~\/Desktop/.exec(text);
+if (personal) { console.error('personal path still present near: ' + text.slice(Math.max(0, personal.index - 80), personal.index + 60)); process.exit(1); }
 
 fs.writeFileSync(out, text);
 console.log(`wrote ${path.relative(process.cwd(), out)}: ${Object.keys(parsed).length} keys, ${avatarCount} avatar(s) templated`);

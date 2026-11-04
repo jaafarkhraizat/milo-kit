@@ -16,7 +16,13 @@ if [ ! -d "$WORK/.git" ]; then
 fi
 git -C "$WORK" pull --ff-only --quiet || true
 
-rsync -a --delete --exclude .git --exclude .DS_Store "$KIT/" "$WORK/"
+# .!* = partial-copy temp files (iCloud / Finder); *.bak = local backups. Never publish either.
+rsync -a --delete --exclude .git --exclude .DS_Store --exclude '.!*' --exclude '*.bak' "$KIT/" "$WORK/"
+# last guard: nothing personal or machine-specific goes public
+if grep -rIl -E "/Users/|Archive Zero|iCloud Drive|jaafarkhraizat@|sk-ant-|ghp_" "$WORK" --exclude-dir=.git --exclude=publish.sh --exclude=sync-from-live.js; then
+  echo "Refusing to publish: personal data in the files above." >&2
+  exit 1
+fi
 git -C "$WORK" add -A
 if git -C "$WORK" diff --cached --quiet; then
   echo "Nothing changed."

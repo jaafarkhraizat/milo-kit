@@ -20,15 +20,25 @@ Then, in VS Code: Command Palette > **Custom UI Style: Reload**. VS Code restart
 - Status bar shows only your Claude usage, yellow at 80%, red at 90%
 
 **Claude Code**
-- Green accent, colored headings, links and inline code, color chips for hex values
+- Blue accent, colored headings, links and inline code, color chips for hex values
 - Your initials beside your messages, Claude's avatar beside replies
 - Cleaner sessions panel: account and usage in one card, a clear "New session" button
 - Milo on the empty chat screen
 - Tab icons that show state: idle, working, done, needs you
+- Chat header shows your usage; only Bookmarks and the chat map stay on the right
+- Tokens spent in the chat, a small number left of Bookmarks. Hover for input, output and cache figures
+- MCP servers used in the chat, as overlapping logo avatars in the header. Hover one for its calls and tools. Logos ship with the kit; nothing is fetched
+- Chat map: a minimap of the whole conversation, opened from the header. Click or drag to move, hover a blue bar to preview a prompt
+- Your last prompt pins to the top only while you scroll up
+- Click a long message to expand it
+- Messages you send while Claude works show in the chat, greyed, with Edit and Delete until Claude takes them
+- Agents chip in the message box and a tasks badge in the header; click either for task and agent details
+- Small previews of images Claude reads, right under the "Read file.png" line
+- Right-click a Claude tab to rename the session
 
 **Milo's Scroll** (macOS)
 - A frosted card with Milo and a short court phrase when Claude finishes, asks a question, needs permission, sits idle, or compacts
-- Green for news, orange when Claude needs an answer. Click it to jump back to VS Code
+- Blue for news, orange when Claude needs an answer. Click it to jump back to VS Code
 - No sound
 - Ask Claude to change it with `/scroll`: turn it off, move it, keep it on screen longer, or test it
 
