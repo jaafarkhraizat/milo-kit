@@ -5,7 +5,7 @@ description: Control Milo's Scroll, the desktop overlay that announces when Clau
 
 # Milo's Scroll
 
-Milo's Scroll shows a frosted-glass card with Milo and a court phrase when Claude Code needs attention. Blue means news. Orange means Claude needs an answer. Click the card to jump back to the editor. macOS only.
+Milo's Scroll shows a frosted-glass pill with Milo, a court phrase, the project name and an action button when Claude Code needs attention. Blue means news. Orange means Claude needs an answer. Click anywhere on the pill to jump back to the editor. macOS only.
 
 Files live in `~/.claude/milos-scroll/`:
 
@@ -25,6 +25,10 @@ Files live in `~/.claude/milos-scroll/`:
 | `seconds` | Seconds on screen. `0` keeps it until clicked | `4` |
 | `all_screens` | `true` shows on every display, `false` only where the mouse is | `true` |
 | `only_when_away` | `true` stays quiet while the app Claude runs in (VS Code, terminal) is in front | `true` |
+| `events` | Which scrolls show: `complete`, `question`, `permission`, `idle`, `limit` (compacting). Missing = all | all |
+| `sound` | `off` or `chime` (a soft macOS sound) | `off` |
+
+Milo Kit settings (editor "..." menu) edits the same file.
 
 ## What to do
 
@@ -39,10 +43,10 @@ Read `~/.claude/milos-scroll/config.json`, change only the keys the user asked f
 
 ## When it speaks
 
-| Claude Code event | Scroll type | Color |
+| Claude Code event | Scroll type | Color, button |
 |---|---|---|
-| `Stop` | complete | blue |
-| `Notification` with `elicitation_dialog` | question | orange |
-| `PermissionRequest` | permission | orange |
-| `Notification` with `idle_prompt` (not within 1 h of a complete) | idle | blue |
-| `PreCompact` | limit | blue |
+| `Stop` | complete | blue, Open |
+| `Notification` with `elicitation_dialog` | question | orange, Answer |
+| `PermissionRequest` | permission | orange, Review |
+| `Notification` with `idle_prompt` (not within 1 h of a complete) | idle | blue, Open |
+| `PreCompact` | limit | blue, Open |

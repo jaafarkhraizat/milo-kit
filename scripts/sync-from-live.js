@@ -41,6 +41,10 @@ text = text.replace(/^([ \t]*\/\/)(.*)$/gm, (all, lead, body) => {
   return lead + b;
 });
 
+// Milo Kit settings choices (colors, corners, feature switches, thresholds) go back to the kit defaults,
+// so the maintainer's own picks never ship.
+text = require('../lib/apply.js').resetText(text, initials);
+
 // workbench script imports point at this machine; install.js adds the kit's own import instead
 text = jsonc.applyEdits(text, jsonc.modify(text, ['custom-ui-style.external.imports'], undefined, { formattingOptions: { insertSpaces: true, tabSize: 2, eol: '\n' } }));
 

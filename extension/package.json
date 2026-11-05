@@ -1,0 +1,22 @@
+{
+  "name": "milo-kit-settings",
+  "displayName": "Milo Kit Settings",
+  "description": "Settings for Milo Kit: colors, icons, fonts, chat features, Milo's Scroll and the status bar.",
+  "version": "1.0.0",
+  "publisher": "local",
+  "license": "MIT",
+  "engines": { "vscode": "^1.80.0" },
+  "categories": ["Other"],
+  "main": "./extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "commands": [
+      { "command": "miloKit.openSettings", "title": "Milo Kit settings", "icon": "$(settings-gear)" }
+    ],
+    "menus": {
+      "editor/title": [
+        { "command": "miloKit.openSettings", "group": "0_milokit@0" }
+      ]
+    }
+  }
+}

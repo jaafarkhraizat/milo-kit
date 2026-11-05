@@ -4,7 +4,8 @@
 # Install or update:  curl -fsSL https://raw.githubusercontent.com/jaafarkhraizat/milo-kit/main/install.sh | bash
 # Uninstall:          curl -fsSL https://raw.githubusercontent.com/jaafarkhraizat/milo-kit/main/install.sh | bash -s -- uninstall
 #
-# Options (env): MILO_EDITOR=code|code-insiders|cursor|codium   MILO_INITIALS=AB   MILO_SKIP=theme,scroll,fonts
+# Options (env): MILO_EDITOR=code|code-insiders|cursor|codium   MILO_INITIALS=AB   MILO_SKIP=theme,scroll,fonts,usage
+#                MILO_ASK=1 (ask the setup questions again on an update)
 set -euo pipefail
 
 REPO="${MILO_KIT_REPO:-jaafarkhraizat/milo-kit}"
@@ -63,6 +64,38 @@ if [ "$MODE" = install ] && [ -z "${MILO_INITIALS:-}" ] && [ ! -f "$HOME/.milo-k
     read -r NAME </dev/tty || true
   fi
   NAME="${NAME:-$DEFAULT}"
+fi
+
+# ── Setup questions (first install, or MILO_ASK=1). Enter keeps the default. ─
+ask() { # ask "Question" default -> answer in REPLY
+  printf "  %s " "$1"
+  REPLY=""
+  read -r REPLY </dev/tty || true
+  REPLY="${REPLY:-$2}"
+}
+yn() { case "$1" in [Nn]*) echo n ;; *) echo y ;; esac; }
+if [ "$MODE" = install ] && [ -r /dev/tty ] && { [ ! -f "$HOME/.milo-kit/state.json" ] || [ "${MILO_ASK:-}" = 1 ]; }; then
+  echo
+  echo "  How do you want to set up?"
+  echo "    1  Everything, kit defaults (recommended)"
+  echo "    2  Let me choose"
+  ask "›" 1
+  if [ "$REPLY" = 2 ]; then
+    echo
+    ask "Accent color   1 Blue  2 Orange  3 Green  4 Purple  5 Pink  [1]:" 1
+    case "$REPLY" in 2) A=orange ;; 3) A=green ;; 4) A=purple ;; 5) A=pink ;; *) A=blue ;; esac
+    ask "Theme          1 Milo  2 Ember  3 Moss  4 Ink  [1]:" 1
+    case "$REPLY" in 2) P=ember ;; 3) P=moss ;; 4) P=ink ;; *) P=milo ;; esac
+    export MILO_SETUP_PRESET="$P" MILO_SETUP_ACCENT="$A"
+    case ",${MILO_SKIP:-}," in *,fonts,*) ;; *)
+      ask "Install fonts (Geist, Geist Mono)?         [Y/n]:" y
+      [ "$(yn "$REPLY")" = n ] && MILO_SKIP="${MILO_SKIP:+$MILO_SKIP,}fonts" ;;
+    esac
+    ask "Milo's Scroll desktop notifications?       [Y/n]:" y; export MILO_SETUP_SCROLL="$(yn "$REPLY")"
+    ask "Usage summary after each reply?            [Y/n]:" y; export MILO_SETUP_USAGE="$(yn "$REPLY")"
+    ask "Chat extras (map, pinned prompt, badges)?  [Y/n]:" y; export MILO_SETUP_CHAT="$(yn "$REPLY")"
+  fi
+  export MILO_SKIP="${MILO_SKIP:-}"
 fi
 
 MILO_KIT="$KIT" MILO_CLI="$CLI" MILO_NAME="$NAME" "${NODE[@]}" "$KIT/lib/install.js" "$MODE"

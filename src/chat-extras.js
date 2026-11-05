@@ -11,10 +11,12 @@
     get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
     set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
   };
+  // Features turned off in Milo Kit settings (set by the /*mk-off*/ block that lib/apply.js writes before this script).
+  const off = (f) => (window.__mkOff || []).indexOf(f) >= 0;
   const isChatScroller = (el) => el instanceof Element && typeof el.className === 'string' && el.className.indexOf('messagesContainer_') >= 0;
 
   const css = document.createElement('style');
-  css.textContent = '@keyframes mkFade{from{opacity:0}to{opacity:1}}@keyframes mkIn{from{opacity:0;transform:translateX(8px)}to{opacity:1;transform:none}}@keyframes mkCount{from{transform:scaleX(1)}to{transform:scaleX(0)}}@keyframes mkRise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}@keyframes mkPulse{0%,100%{box-shadow:0 0 0 0 rgba(130,169,245,.55)}50%{box-shadow:0 0 0 4px rgba(130,169,245,0)}}@keyframes mkSpin{to{transform:rotate(360deg)}}@media (prefers-reduced-motion: reduce){html[data-mk-reveal] [data-mk-stuck]{transition:none!important}[data-mk-stuck],.mkMcpAv,.mkPanel,.mkHeld,.mkThumb,.mkMap,.mkTick,.mkAgents>i,.mkHeldMeta span::before{animation:none!important}}';
+  css.textContent = '@keyframes mkFade{from{opacity:0}to{opacity:1}}@keyframes mkIn{from{opacity:0;transform:translateX(8px)}to{opacity:1;transform:none}}@keyframes mkCount{from{transform:scaleX(1)}to{transform:scaleX(0)}}@keyframes mkRise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}@keyframes mkPulse{0%,100%{box-shadow:0 0 0 0 rgba(130,169,245,.55)}50%{box-shadow:0 0 0 4px rgba(130,169,245,0)}}@keyframes mkSpin{to{transform:rotate(360deg)}}@media (prefers-reduced-motion: reduce){html[data-mk-reveal] [data-mk-stuck]{transition:none!important}[data-mk-md]{transition:none!important}[data-mk-stuck],.mkMcpAv,.mkPanel,.mkUsage,.mkHeld,.mkThumb,.mkMap,.mkTick,.mkAgents>i,.mkHeldMeta span::before{animation:none!important}}';
   document.head.appendChild(css);
 
   // 1. Usage in the chat header: the chat webview never asks for it, so ask on load and every 2 minutes.
@@ -39,7 +41,7 @@
   let drift = 0;
   document.addEventListener('scroll', (e) => {
     const c = e.target;
-    if (!isChatScroller(c)) return;
+    if (!isChatScroller(c) || off('pin')) return;
     const y = c.scrollTop, prev = lastY.get(c);
     lastY.set(c, y);
     if (prev !== undefined) {
@@ -98,6 +100,7 @@
   document.addEventListener('click', (e) => {
     const t = e.target;
     if (!(t instanceof Element) || t.closest('button, a, input, textarea')) return;
+    if (off('expand')) return;
     const box = t.closest('[class*="expandableContainer_"]');
     if (!box || !q('[class*="collapsed_"]', box) || String(getSelection() || '').length) return;
     const more = q('[class*="expandButton_"]', box);
@@ -233,7 +236,7 @@
     if (!(box instanceof Element) || box.getAttribute('aria-label') !== 'Message input') return;
     lastKeyAt = Date.now();
     if (bypass || e.key !== 'Enter' || e.shiftKey || e.altKey || e.isComposing || e.keyCode === 229) return;
-    if (!isBusy() || box.getAttribute('aria-activedescendant')) return;
+    if (off('queue') || !isBusy() || box.getAttribute('aria-activedescendant')) return;
     const fieldset = box.closest('fieldset');
     if (fieldset && q('img, [class*="ttachment"], [class*="humbnail"]', fieldset)) return; // attachments: let Claude handle it
     const text = box.innerText.trimEnd();
@@ -745,6 +748,9 @@
     : v < 999500 ? Number((v / 1e3).toFixed(v < 1e4 ? 1 : 0)) + 'k'
     : Number((v / 1e6).toFixed(v < 1e7 ? 2 : 1)) + 'M';
   const tokenLong = (v) => v.toLocaleString('en-US');
+  // RemixIcon coin-fill (tokens) and bar-chart-box-line (dashboard)
+  const COIN_ICON = '<svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="M23.0049 12.0028V14.0028C23.0049 17.3165 18.08 20.0028 12.0049 20.0028C6.03824 20.0028 1.18114 17.4116 1.00957 14.1797L1.00488 14.0028V12.0028C1.00488 15.3165 5.92975 18.0028 12.0049 18.0028C18.08 18.0028 23.0049 15.3165 23.0049 12.0028ZM12.0049 4.00281C18.08 4.00281 23.0049 6.6891 23.0049 10.0028C23.0049 13.3165 18.08 16.0028 12.0049 16.0028C5.92975 16.0028 1.00488 13.3165 1.00488 10.0028C1.00488 6.6891 5.92975 4.00281 12.0049 4.00281Z"/></svg>';
+  const DASH_ICON = '<svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden="true"><path d="M3 3H21C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3ZM4 5V19H20V5H4ZM7 13H9V17H7V13ZM11 7H13V17H11V7ZM15 10H17V17H15V10Z"/></svg>';
   let tokensDrawn = '';
   function syncTokens() {
     const s = window.__mkS;
@@ -753,8 +759,14 @@
     if (!s || !header) return;
     hookUsage(s);
     if (!msgCount(s) && usageMap(s).size) { usageBy.set(s, new Map()); partial.delete(s); usageVer++; }
+    // header: [usage][mcp] ... [coin 12.4k] ... [Bookmarks][chat map]. The count is read-only and centred in the
+    // free space (auto margins). The usage dashboard lives in the "Account & usage" section (syncAcctDash).
     let el = q(':scope > .mkTokens', header);
-    if (!el) { el = document.createElement('span'); el.className = 'mkTokens'; }
+    if (!el) {
+      el = document.createElement('span');
+      el.className = 'mkTokens';
+      el.innerHTML = COIN_ICON + '<b></b>';
+    }
     const ref = q(':scope > button[aria-label="Bookmarks"]', header) || q(':scope > .mkMapToggle', header);
     if (ref ? el.nextElementSibling !== ref : el.parentElement !== header) header.insertBefore(el, ref || null);
     const key = usageVer + ':' + sidOf(s) + ':' + partial.has(s);
@@ -765,11 +777,42 @@
     usageMap(s).forEach((u) => TOKEN_KEYS.forEach((k) => { t[k] += u[k]; }));
     const total = TOKEN_KEYS.reduce((a, k) => a + t[k], 0);
     const text = total ? tokenShort(total) : '';
-    if (el.textContent !== text) el.textContent = text;
+    const num = q('b', el);
+    if (num.textContent !== text) num.textContent = text;
+    el.hidden = !total;
     const label = total ? 'Tokens this chat: ' + tokenLong(total) + '\nInput ' + tokenLong(t.input_tokens) + ' · Output ' + tokenLong(t.output_tokens) +
       '\nCache write ' + tokenLong(t.cache_creation_input_tokens) + ' · Cache read ' + tokenLong(t.cache_read_input_tokens) +
       (partial.has(s) ? '\nCounted since this view opened' : '') : '';
     if (el.title !== label) { el.title = label; if (label) el.setAttribute('aria-label', label.split('\n')[0]); else el.removeAttribute('aria-label'); }
+  }
+  // Usage dashboard button: in the "Account & usage" section header, between the collapse toggle and Claude's
+  // "View details" link. The section's own account and usage rows stay as they are.
+  function syncAcctDash() {
+    const toggle = q('[class*="sectionHeader_"] > button[title*="ccount & usage"]');
+    const head = toggle && toggle.parentElement;
+    if (!head) return;
+    let b = q(':scope > .mkDashBtn', head);
+    if (!b) {
+      b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'mkDashBtn';
+      b.innerHTML = DASH_ICON;
+      b.title = 'Usage dashboard';
+      b.setAttribute('aria-label', 'Usage dashboard');
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        // this section lives in the sessions sidebar, its own narrow webview: a popup here can't leave it. Ask the
+        // extension to open the dashboard in a chat pane instead, the way Claude's "View details" opens its dialog
+        // (mk:1 rides along; see the extension.js patch in build-chat-extras).
+        const conn = window.__ccConn;
+        if (conn && !q('[class*="messagesContainer_"]')) { conn.sendRequest({ type: 'open_account_usage', mk: 1 }).catch(() => {}); return; }
+        toggleUsage(b);
+        b.setAttribute('aria-pressed', dash && !dash.hidden ? 'true' : 'false');
+      });
+    }
+    b.setAttribute('aria-pressed', dash && !dash.hidden && dashAnchor === b ? 'true' : 'false');
+    const link = q(':scope > [class*="sectionLink_"]', head);
+    if (link ? b.nextElementSibling !== link : b.parentElement !== head) head.insertBefore(b, link || null);
   }
   // hook as early as possible so a resumed chat's history is counted when it loads
   setInterval(() => { if (window.__mkS) hookUsage(window.__mkS); }, 200);
@@ -896,18 +939,755 @@
     box.replaceChildren(frag);
   }
 
-  setInterval(() => { syncAgents(); syncTokens(); syncMcp(); }, 1000);
+  // 10. Text types: tag what Claude writes so each kind reads differently at a glance. Attributes only (never
+  //     rewrites Claude's DOM, so React keeps working). Markdown roots get data-mk-md; inline code gets
+  //     data-mk-t = skill | cmd | key | color | var | time | date | dur | status | num | hash | id | agent | mcp | url | file;
+  //     blockquotes that open with a bold title get data-mk-callout; numeric table cells data-mk-num; code blocks
+  //     data-mk-lang; "Skill" tool rows data-mk-skill. Styles: [data-mk-*] rules in the webview stylesheet.
+  const END = String.fromCharCode(36);
+  const rx = (s, f) => new RegExp('^(?:' + s + ')' + END, f === undefined ? 'i' : f);
+  const BUILTIN = new Set(('add-dir agents artifacts bug clear compact config context cost doctor exit export fast help hooks ide init ' +
+    'login logout mcp memory model permissions plugin pr-comments release-notes resume review rewind status statusline ' +
+    'terminal-setup usage vim').split(' '));
+  const SHELL = rx('(?:\\x24 )?(?:git|gh|npm|npx|pnpm|yarn|bun|node|deno|python3?|pip3?|uv|brew|cd|ls|cat|curl|wget|open|code|claude|' +
+    'rm|mv|cp|mkdir|touch|chmod|echo|export|source|bash|sh|zsh|make|docker|kubectl|sed|grep|rg|find|head|tail|cargo|go|rtk|ollama|sips|osascript|defaults|launchctl)\\s.*');
+  const T = {
+    key: rx('(?:⌘|⌥|⇧|⌃|cmd|command|ctrl|control|alt|opt|option|shift|meta|super|fn)(?:\\s*[+\\-]\\s*[^\\s+]+)+|enter|esc|escape|tab|backspace|f\\d{1,2}'),
+    color: rx('#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})|(?:rgba?|hsla?|oklch|oklab|lab|lch)\\([^()]*\\)'),
+    cssvar: rx('--[\\w-]+|var\\(--[\\w-]+(?:,.*)?\\)'),
+    date: rx('\\d{4}-\\d{2}-\\d{2}|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\\.? \\d{1,2}(?:,? \\d{4})?|(?:today|tomorrow|yesterday|mon|tue|wed|thu|fri|sat|sun)[a-z]*'),
+    time: rx('(?:(?:\\d{4}-\\d{2}-\\d{2}|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\\.? \\d{1,2}(?:,? \\d{4})?|(?:today|tomorrow|yesterday|mon|tue|wed|thu|fri|sat|sun)[a-z]*),?(?:[ T]| at ))?' +
+      '(?:[01]?\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?(?:\\.\\d+)?(?: ?[ap]m)?(?: ?(?:z|utc|gmt|cet|cest|[a-z]{2,4}|[+\\-]\\d{2}:?\\d{2}))?|\\d+ ?(?:s|sec|min|m|h|hr|hours?|d|days?|w|weeks?) ago|just now'),
+    dur: rx('~?\\d+(?:\\.\\d+)?\\s?(?:ms|s|secs?|seconds?|m|mins?|minutes?|h|hrs?|hours?|d|days?|w|wks?|weeks?)'),
+    num: rx('[+\\-−±~]?(?:\\d[\\d,]*(?:\\.\\d+)?|\\.\\d+)\\s?(?:%|px|rem|em|pt|vh|vw|deg|x|×|k|m|b|kb|mb|gb|tb|tokens?|chars?|lines?|files?|fps)?'),
+    hash: rx('(?=[0-9a-f]*[a-f])(?=[0-9a-f]*\\d)[0-9a-f]{7,40}'),
+    id: rx('[A-Z][A-Z0-9]{1,9}-\\d+|(?:PR|pr|issue) ?#\\d+', ''),
+    agent: rx('@[a-z][\\w-]*'),
+    mcp: rx('mcp__[\\w-]+__[\\w-]+'),
+    url: rx('https?://\\S+'),
+    file: rx('[\\w@.\\- ]*[\\w@\\-]\\.(?:jsonc?|[cm]?[jt]sx?|md|mdx|css|scss|html?|py|sh|zsh|svg|png|jpe?g|gif|webp|avif|ya?ml|toml|txt|pdf|fig|zip|swift|kt|go|rs|lock|env|plist|xml|csv|log|ipynb|sql|vue|svelte)(?::\\d+(?:-\\d+)?)?'),
+  };
+  const NUM_CELL = rx('[+\\-−~]?[\\d.,]*\\d[\\d.,]*\\s?(?:%|[a-z]{0,3})?');
+  const STATUS = {
+    good: 'done pass passed passing ok fixed shipped merged ready resolved approved success',
+    bad: 'fail failed failing error broken blocked rejected crash',
+    warn: 'warn warning pending skipped wip todo flaky draft partial',
+    info: 'info beta planned',
+  };
+  const STATUS_OF = {};
+  Object.keys(STATUS).forEach((k) => STATUS[k].split(' ').forEach((w) => { STATUS_OF[w] = k; }));
+  const isPath = (t) => {
+    if (/^https?:/i.test(t) || /[()<>{}=;"']/.test(t) || /\s{2}/.test(t)) return false;
+    if (/^(~\/|\.{1,2}\/|\/[\w.])/.test(t)) return true;
+    return t.indexOf('/') > 0 && /[\w)~.]\/[\w.~@-]/.test(t);
+  };
+  // skills Claude invoked in this chat (Skill tool calls), so a bare `name` in code also reads as a skill
+  let skillCache = { key: '', set: new Set() };
+  const usedSkills = () => {
+    let msgs = [];
+    try { msgs = (window.__mkS && window.__mkS.messages && window.__mkS.messages.value) || []; } catch (e) {}
+    const last = msgs.length ? msgs[msgs.length - 1] : null;
+    const key = msgs.length + ':' + String(last && last.uuid);
+    if (key === skillCache.key) return skillCache.set;
+    const out = new Set(), seen = new Set();
+    const visit = (o, depth) => {
+      if (!o || typeof o !== 'object' || depth > 6 || seen.has(o)) return;
+      seen.add(o);
+      if (Array.isArray(o)) { o.forEach((x) => visit(x, depth + 1)); return; }
+      if (o.type === 'tool_use' && o.name === 'Skill' && o.input && o.input.skill) {
+        const n = String(o.input.skill).toLowerCase();
+        out.add(n);
+        out.add(n.split(':').pop());
+        return;
+      }
+      for (const k in o) { if (k === 'text' || k === 'data') continue; const v = o[k]; if (v && typeof v === 'object') visit(v, depth + 1); }
+    };
+    msgs.forEach((m) => visit(m, 0));
+    skillCache = { key, set: out };
+    return out;
+  };
+  function codeType(t, skills) {
+    const low = t.toLowerCase();
+    let m = /^\/([a-z][\w-]*(?::[\w-]+)?)/i.exec(t);
+    if (m && m[0].length === t.length) return BUILTIN.has(m[1].toLowerCase()) ? ['cmd', 'slash'] : ['skill'];
+    if (skills.has(low) || (low.indexOf(':') > 0 && skills.has(low.split(':').pop()))) return ['skill'];
+    if (T.mcp.test(t)) return ['mcp'];
+    if (T.agent.test(t)) return ['agent'];
+    if (T.url.test(t)) return ['url'];
+    if (T.key.test(t)) return ['key'];
+    if (T.color.test(t)) return ['color'];
+    if (T.cssvar.test(t)) return ['var'];
+    if (T.time.test(t)) return ['time'];
+    if (T.date.test(t)) return ['date'];
+    if (T.dur.test(t)) return ['dur'];
+    if (STATUS_OF[low]) return ['status', STATUS_OF[low]];
+    if (T.hash.test(t)) return ['hash'];
+    if (T.id.test(t)) return ['id'];
+    if (T.num.test(t) && /\d/.test(t)) return ['num', /^[+]/.test(t) ? 'up' : /^[\-−]/.test(t) ? 'down' : ''];
+    if (SHELL.test(t)) return ['cmd', 'shell'];
+    if (isPath(t)) return ['file', t.charAt(t.length - 1) === '/' ? 'dir' : ''];
+    if (T.file.test(t)) return ['file', ''];
+    return null;
+  }
+  const CALLOUT = {
+    summary: 'summary|tl;?dr|recap|in short|overview', note: 'note|info|fyi|context|heads up', tip: 'tip|hint|pro tip',
+    warn: 'warning|warn|caution|careful|watch out', risk: 'risk|danger|error|blocker|breaking|problem|issue|bug',
+    decision: 'decision|decided|verdict|recommendation|my call|call', quote: 'quote|quoted|in their words|said',
+    next: 'next|next steps?|to do|todo|action|actions|your move|steps', done: 'done|result|results|shipped|fixed|changed|what changed|verified',
+    design: 'design|spec|ui|visual|tokens?|palette|layout', question: 'question|open questions?|ask|unknown|unclear', insight: 'insight|why|learned|finding|findings',
+  };
+  const calloutOf = (title) => {
+    const t = title.toLowerCase().replace(/[:.]/g, ' ').trim();
+    for (const k in CALLOUT) if (rx(CALLOUT[k]).test(t)) return k;
+    return 'note';
+  };
+  const setAttr = (el, k, v) => { if (v) { if (el.getAttribute(k) !== v) el.setAttribute(k, v); } else if (el.hasAttribute(k)) el.removeAttribute(k); };
+  function syncTypes() {
+    qa('span[class^="root_"], span[class*=" root_"]').forEach((el) => { if (!el.hasAttribute('data-mk-md') && q('p, li, h1, h2, h3, h4, pre, blockquote, table, code', el)) el.setAttribute('data-mk-md', ''); });
+    const skills = usedSkills();
+    const skillKey = Array.from(skills).join(',');
+    qa('[data-mk-md] code').forEach((c) => {
+      if (c.closest('pre, a') || (typeof c.className === 'string' && c.className)) return;
+      const t = c.textContent.trim();
+      const key = t + '|' + skillKey;
+      if (c.dataset.mkK === key) return;
+      c.dataset.mkK = key;
+      const r = t.length && t.length < 260 ? codeType(t, skills) : null;
+      setAttr(c, 'data-mk-t', r && r[0]);
+      setAttr(c, 'data-mk-v', r && r[1]);
+      if (r && r[0] === 'color') c.style.setProperty('--hx', t);
+    });
+    qa('[data-mk-md] blockquote').forEach((b) => {
+      const p = b.firstElementChild;
+      const s = p && p.tagName === 'P' ? p.firstChild : null;
+      const strong = s && s.nodeType === 1 && (s.tagName === 'STRONG' || s.tagName === 'B') ? s : null;
+      setAttr(b, 'data-mk-callout', strong ? calloutOf(strong.textContent) : 'quote');
+      const last = b.lastElementChild;
+      if (last && last !== p && last.tagName === 'P') {
+        const em = last.firstElementChild;
+        setAttr(last, 'data-mk-cite', em && em.tagName === 'EM' && em.textContent.trim() === last.textContent.trim() ? '1' : '');
+      }
+    });
+    qa('[data-mk-md] td').forEach((td) => {
+      const t = td.textContent.trim();
+      setAttr(td, 'data-mk-num', t && t.length < 24 && NUM_CELL.test(t.replace(/^[^\d+\-−~.]{1,2}(?=\d)/, '')) ? '1' : '');
+    });
+    qa('[data-mk-md] table').forEach((tb) => {
+      const rows = qa('tbody tr', tb);
+      qa('thead th', tb).forEach((th, i) => {
+        const cells = rows.map((r) => r.children[i]).filter(Boolean);
+        setAttr(th, 'data-mk-num', cells.length && cells.every((c) => c.hasAttribute('data-mk-num')) ? '1' : '');
+      });
+    });
+    qa('[data-mk-md] pre > code[class*="language-"]').forEach((c) => {
+      const w = c.parentElement.parentElement;
+      const m = /language-([\w+#-]+)/.exec(c.className);
+      if (w && m) setAttr(w, 'data-mk-lang', m[1].toLowerCase());
+    });
+    qa('[class*="toolNameText_"]').forEach((el) => setAttr(el, 'data-mk-skill', el.textContent.trim() === 'Skill' ? '1' : ''));
+  }
+
+  // 11. Usage dashboard: the button in the sessions sidebar's "Account & usage" header. It opens as a popup over the
+  //     chat pane (never inside the sidebar); the expand button turns it into a full page. Where tokens went across all chats: projects, kinds of work,
+  //     and where it took retries. Data comes from usage/aggregate.js (a Stop hook), which writes
+  //     resources/mk-usage.css into the extension folder: the chat's CSP blocks fetch but allows stylesheets from
+  //     there, so the summary rides in one custom property (base64 JSON). Turn rows:
+  //     [ts, area, type, in, cacheWrite, cacheRead, out, cost, fix, toolErrors, edits, subagent, prompts, revision, prompt]
+  const USD = String.fromCharCode(36);
+  const ico = (d, s) => '<svg viewBox="0 0 24 24" width="' + (s || 14) + '" height="' + (s || 14) + '" fill="currentColor" aria-hidden="true"><path d="' + d + '"/></svg>';
+  const UI = {
+    expand: 'M17.5858 5H14V3H21V10H19V6.41421L14.7071 10.7071L13.2929 9.29289L17.5858 5ZM3 14H5V17.5858L9.29289 13.2929L10.7071 14.7071L6.41421 19H10V21H3V14Z',
+    collapse: 'M15 4.00008H13V11.0001H20V9.00008H16.4142L20.7071 4.70718L19.2929 3.29297L15 7.58586V4.00008ZM4.00008 15H7.58586L3.29297 19.2929L4.70718 20.7071L9.00008 16.4142V20H11.0001V13H4.00008V15Z',
+    close: 'M11.9997 10.5865L16.9495 5.63672L18.3637 7.05093L13.4139 12.0007L18.3637 16.9504L16.9495 18.3646L11.9997 13.4149L7.04996 18.3646L5.63574 16.9504L10.5855 12.0007L5.63574 7.05093L7.04996 5.63672L11.9997 10.5865Z',
+    build: 'M20 2C20.5523 2 21 2.44772 21 3V8C21 8.55228 20.5523 9 20 9H15V22C15 22.5523 14.5523 23 14 23H10C9.44772 23 9 22.5523 9 22V9H3.5C2.94772 9 2.5 8.55228 2.5 8V5.61803C2.5 5.23926 2.714 4.893 3.05279 4.72361L8.5 2H20ZM15 4H8.97214L4.5 6.23607V7H11V21H13V7H15V4ZM19 4H17V7H19V4Z',
+    design: 'M12 2C17.5222 2 22 5.97778 22 10.8889C22 13.9556 19.5111 16.4444 16.4444 16.4444H14.4778C13.5556 16.4444 12.8111 17.1889 12.8111 18.1111C12.8111 18.5333 12.9778 18.9222 13.2333 19.2111C13.5 19.5111 13.6667 19.9 13.6667 20.3333C13.6667 21.2556 12.9 22 12 22C6.47778 22 2 17.5222 2 12C2 6.47778 6.47778 2 12 2ZM10.8111 18.1111C10.8111 16.0843 12.451 14.4444 14.4778 14.4444H16.4444C18.4065 14.4444 20 12.851 20 10.8889C20 7.1392 16.4677 4 12 4C7.58235 4 4 7.58235 4 12C4 16.19 7.2226 19.6285 11.324 19.9718C10.9948 19.4168 10.8111 18.7761 10.8111 18.1111ZM7.5 12C6.67157 12 6 11.3284 6 10.5C6 9.67157 6.67157 9 7.5 9C8.32843 9 9 9.67157 9 10.5C9 11.3284 8.32843 12 7.5 12ZM16.5 12C15.6716 12 15 11.3284 15 10.5C15 9.67157 15.6716 9 16.5 9C17.3284 9 18 9.67157 18 10.5C18 11.3284 17.3284 12 16.5 12ZM12 9C11.1716 9 10.5 8.32843 10.5 7.5C10.5 6.67157 11.1716 6 12 6C12.8284 6 13.5 6.67157 13.5 7.5C13.5 8.32843 12.8284 9 12 9Z',
+    fix: 'M13 19.9C15.2822 19.4367 17 17.419 17 15V12C17 11.299 16.8564 10.6219 16.5846 10H7.41538C7.14358 10.6219 7 11.299 7 12V15C7 17.419 8.71776 19.4367 11 19.9V14H13V19.9ZM5.5358 17.6907C5.19061 16.8623 5 15.9534 5 15H2V13H5V12C5 11.3573 5.08661 10.7348 5.2488 10.1436L3.0359 8.86602L4.0359 7.13397L6.05636 8.30049C6.11995 8.19854 6.18609 8.09835 6.25469 8H17.7453C17.8139 8.09835 17.88 8.19854 17.9436 8.30049L19.9641 7.13397L20.9641 8.86602L18.7512 10.1436C18.9134 10.7348 19 11.3573 19 12V13H22V15H19C19 15.9534 18.8094 16.8623 18.4642 17.6907L20.9641 19.134L19.9641 20.866L17.4383 19.4077C16.1549 20.9893 14.1955 22 12 22C9.80453 22 7.84512 20.9893 6.56171 19.4077L4.0359 20.866L3.0359 19.134L5.5358 17.6907ZM8 6C8 3.79086 9.79086 2 12 2C14.2091 2 16 3.79086 16 6H8Z',
+    research: 'M18.031 16.6168L22.3137 20.8995L20.8995 22.3137L16.6168 18.031C15.0769 19.263 13.124 20 11 20C6.032 20 2 15.968 2 11C2 6.032 6.032 2 11 2C15.968 2 20 6.032 20 11C20 13.124 19.263 15.0769 18.031 16.6168ZM16.0247 15.8748C17.2475 14.6146 18 12.8956 18 11C18 7.1325 14.8675 4 11 4C7.1325 4 4 7.1325 4 11C4 14.8675 7.1325 18 11 18C12.8956 18 14.6146 17.2475 15.8748 16.0247L16.0247 15.8748Z',
+    setup: 'M3.33946 17.0002C2.90721 16.2515 2.58277 15.4702 2.36133 14.6741C3.3338 14.1779 3.99972 13.1668 3.99972 12.0002C3.99972 10.8345 3.3348 9.824 2.36353 9.32741C2.81025 7.71651 3.65857 6.21627 4.86474 4.99001C5.7807 5.58416 6.98935 5.65534 7.99972 5.072C9.01009 4.48866 9.55277 3.40635 9.4962 2.31604C11.1613 1.8846 12.8847 1.90004 14.5031 2.31862C14.4475 3.40806 14.9901 4.48912 15.9997 5.072C17.0101 5.65532 18.2187 5.58416 19.1346 4.99007C19.7133 5.57986 20.2277 6.25151 20.66 7.00021C21.0922 7.7489 21.4167 8.53025 21.6381 9.32628C20.6656 9.82247 19.9997 10.8336 19.9997 12.0002C19.9997 13.166 20.6646 14.1764 21.6359 14.673C21.1892 16.2839 20.3409 17.7841 19.1347 19.0104C18.2187 18.4163 17.0101 18.3451 15.9997 18.9284C14.9893 19.5117 14.4467 20.5941 14.5032 21.6844C12.8382 22.1158 11.1148 22.1004 9.49633 21.6818C9.55191 20.5923 9.00929 19.5113 7.99972 18.9284C6.98938 18.3451 5.78079 18.4162 4.86484 19.0103C4.28617 18.4205 3.77172 17.7489 3.33946 17.0002ZM11.9997 15.0002C10.3429 15.0002 8.99972 13.6571 8.99972 12.0002C8.99972 10.3434 10.3429 9.00021 11.9997 9.00021C13.6566 9.00021 14.9997 10.3434 14.9997 12.0002C14.9997 13.6571 13.6566 15.0002 11.9997 15.0002ZM11.9997 13.0002C12.552 13.0002 12.9997 12.5525 12.9997 12.0002C12.9997 11.4479 12.552 11.0002 11.9997 11.0002C11.4474 11.0002 10.9997 11.4479 10.9997 12.0002C10.9997 12.5525 11.4474 13.0002 11.9997 13.0002Z',
+    writing: 'M6.93912 14.0328C6.7072 14.6563 6.51032 15.2331 6.33421 15.8155C7.29345 15.1189 8.43544 14.6767 9.75193 14.5121C12.2652 14.198 14.4976 12.5385 15.6279 10.4537L14.1721 8.99888L15.5848 7.58417C15.9185 7.25004 16.2521 6.91614 16.5858 6.58248C17.0151 6.15312 17.5 5.35849 18.0129 4.2149C12.4197 5.08182 8.99484 8.50647 6.93912 14.0328ZM17 8.99739L18 9.99669C17 12.9967 14 15.9967 10 16.4967C7.33146 16.8303 5.66421 18.6636 4.99824 21.9967H3C4 15.9967 6 1.99669 21 1.99669C20.0009 4.99402 19.0018 6.99313 18.0027 7.99402C17.6662 8.33049 17.3331 8.66382 17 8.99739Z',
+    chat: 'M7.29117 20.8242L2 22L3.17581 16.7088C2.42544 15.3056 2 13.7025 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22C10.2975 22 8.6944 21.5746 7.29117 20.8242ZM7.58075 18.711L8.23428 19.0605C9.38248 19.6745 10.6655 20 12 20C16.4183 20 20 16.4183 20 12C20 7.58172 16.4183 4 12 4C7.58172 4 4 7.58172 4 12C4 13.3345 4.32549 14.6175 4.93949 15.7657L5.28896 16.4192L4.63416 19.3658L7.58075 18.711Z',
+  };
+  const TYPE_LABEL = { build: 'Build', design: 'Design', fix: 'Fix and debug', research: 'Research', setup: 'Setup', writing: 'Writing', chat: 'Questions' };
+  const RANGES = [[7, '7d', 'last 7 days'], [30, '30d', 'last 30 days'], [60, '60d', 'last 60 days'], [90, '90d', 'last 90 days'], [0, 'All', 'all time']];
+  const escH = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const fmtTok = (v) => (v >= 1e9 ? Number((v / 1e9).toFixed(v < 1e10 ? 2 : 1)) + 'B' : tokenShort(Math.round(v)));
+  const fmtUsd = (v) => USD + (v >= 1e4 ? Number((v / 1e3).toFixed(1)) + 'k' : v >= 100 ? Math.round(v).toLocaleString('en-US') : v.toFixed(2));
+  const pct = (a, b) => (b ? (a / b) * 100 : 0);
+  const nFix = (n) => n + (n === 1 ? ' fix' : ' fixes');
+  const fmtPct = (v) => (v > 0 && v < 1 ? '<1' : v < 10 ? v.toFixed(1).replace(/\.0(?!\d)/, '') : String(Math.round(v))) + '%';
+  const dayKey = (ts) => { const d = new Date(ts * 1000); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); };
+  const fmtDay = (ts, long) => new Date(ts * 1000).toLocaleDateString('en-GB', long ? { weekday: 'short', day: 'numeric', month: 'short' } : { day: 'numeric', month: 'short' });
+  const sinceTxt = (ts) => { const m = Math.max(0, Math.round((Date.now() / 1000 - ts) / 60)); return m < 1 ? 'just now' : m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) + ' d ago'; };
+
+  let usageData = null, usageState = 'idle', usageDays = 7, dash = null, dashAnchor = null, dashSig = '', usagePage = false;
+  function loadUsage(done) {
+    const ref = qa('link[rel="stylesheet"]').find((l) => /\/webview\/index\.css/.test(l.href));
+    if (!ref) { usageState = 'missing'; done(); return; }
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.className = 'mkUsageLink';
+    link.href = ref.href.replace(/\/webview\/index\.css.*/, '/resources/mk-usage.css') + '?v=' + Date.now();
+    const finish = (ok) => {
+      if (ok) {
+        try {
+          const probe = document.createElement('i');
+          probe.className = 'mkUsageData';
+          probe.hidden = true;
+          dash.appendChild(probe);
+          let raw = getComputedStyle(probe).getPropertyValue('--mk-usage').trim();
+          probe.remove();
+          if (raw.charAt(0) === '"' || raw.charAt(0) === "'") raw = raw.slice(1, -1);
+          const bin = atob(raw);
+          const bytes = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+          usageData = JSON.parse(new TextDecoder().decode(bytes));
+          usageState = 'ready';
+        } catch (e) { usageState = usageData ? 'ready' : 'missing'; }
+      } else usageState = usageData ? 'ready' : 'missing';
+      qa('link.mkUsageLink').forEach((l) => l.remove());
+      done();
+    };
+    link.onload = () => finish(true);
+    link.onerror = () => finish(false);
+    document.head.appendChild(link);
+  }
+
+  function crunch(d, days) {
+    const now = Date.now() / 1000;
+    // calendar days: "7d" is today plus the 6 days before it; the previous period is the 7 days before that
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const from = days ? today.getTime() / 1000 - (days - 1) * 86400 : 0, before = days ? from - days * 86400 : -1;
+    const blank = () => ({ tok: 0, inp: 0, cw: 0, cr: 0, out: 0, cost: 0, prompts: 0, fixes: 0, revs: 0, rework: 0, errs: 0, edits: 0, sub: 0 });
+    const add = (o, t, tok) => {
+      o.tok += tok; o.inp += t[3]; o.cw += t[4]; o.cr += t[5]; o.out += t[6]; o.cost += t[7]; o.prompts += t[12] || 0;
+      o.fixes += t[8]; o.revs += t[13] || 0; o.errs += t[9]; o.edits += t[10];
+      if (t[8] || t[13]) o.rework += tok;
+      if (t[11]) o.sub += tok;
+    };
+    const cur = blank(), prev = blank(), areas = {}, types = {}, days_ = new Map(), sessions = [], files = {};
+    let first = Infinity, friction = { int: 0, api: 0, cmp: 0 };
+    d.sessions.forEach((s) => {
+      let st = null;
+      s.t.forEach((t) => {
+        const tok = t[3] + t[4] + t[5] + t[6];
+        if (t[0] < from) { if (t[0] >= before) add(prev, t, tok); return; }
+        if (t[0] < first) first = t[0];
+        add(cur, t, tok);
+        const a = d.areas[t[1]] || 'General', ty = d.types[t[2]] || 'chat';
+        add(areas[a] || (areas[a] = blank()), t, tok);
+        add(types[ty] || (types[ty] = blank()), t, tok);
+        const k = dayKey(t[0]);
+        const b = days_.get(k) || { ts: t[0], ok: 0, re: 0, prompts: 0, cost: 0 };
+        if (t[8] || t[13]) b.re += tok; else b.ok += tok;
+        b.prompts += t[12] || 0; b.cost += t[7];
+        days_.set(k, b);
+        if (!st) st = Object.assign(blank(), { s, areas: {} });
+        add(st, t, tok);
+        st.areas[a] = (st.areas[a] || 0) + tok;
+      });
+      if (!st) return;
+      sessions.push(st);
+      friction.int += s.int || 0; friction.api += s.api || 0; friction.cmp += s.cmp || 0;
+      (s.hot || []).forEach(([fp, n]) => { const f = files[fp] || (files[fp] = { n: 0, chats: 0 }); f.n += n; f.chats++; });
+    });
+    sessions.forEach((x) => { x.area = Object.entries(x.areas).sort((a, b) => b[1] - a[1])[0][0]; });
+    return { cur, prev, areas, types, days: days_, sessions, files, friction, first: first === Infinity ? 0 : first, from, now };
+  }
+
+  // daily bars (weekly for long "All time" spans): first try in blue, rework (fixes + revisions) in amber on top
+  function chartHtml(r, days) {
+    const DAY = 86400;
+    const start = days ? r.from : r.first;
+    if (!start) return '';
+    const span = Math.ceil((r.now - start) / DAY);
+    const step = span > 120 ? 7 : 1;
+    const buckets = [];
+    const s0 = new Date(start * 1000); s0.setHours(0, 0, 0, 0);
+    for (let t = s0.getTime() / 1000; t <= r.now; t += step * DAY) buckets.push({ ts: t, ok: 0, re: 0, prompts: 0, cost: 0 });
+    r.days.forEach((b) => {
+      const i = Math.min(buckets.length - 1, Math.max(0, Math.floor((b.ts - buckets[0].ts) / (step * DAY))));
+      const x = buckets[i]; x.ok += b.ok; x.re += b.re; x.prompts += b.prompts; x.cost += b.cost;
+    });
+    const max = Math.max(1, ...buckets.map((b) => b.ok + b.re));
+    const mag = Math.pow(10, Math.floor(Math.log10(max)));
+    const top = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((v) => v >= max) || max;
+    let h = '<div class="mkUChart" style="--n:' + buckets.length + '"><div class="mkUGrid"><span data-v="' + fmtTok(top) + '"></span><span data-v="' + fmtTok(top / 2) + '"></span><span data-v="0"></span></div><div class="mkUBars">';
+    buckets.forEach((b, i) => {
+      const tot = b.ok + b.re;
+      const tip = (step > 1 ? 'Week of ' + fmtDay(b.ts, true) : fmtDay(b.ts, true)) + '|' + fmtTok(tot) + '|' + fmtTok(b.ok) + '|' + fmtTok(b.re) + '|' + b.prompts + '|' + fmtUsd(b.cost);
+      h += '<div class="mkUBar" data-tip="' + escH(tip) + '" data-i="' + i + '">' +
+        (b.re ? '<i class="re" style="height:' + pct(b.re, top).toFixed(2) + '%"></i>' : '') +
+        (b.ok ? '<i class="ok" style="height:' + pct(b.ok, top).toFixed(2) + '%"></i>' : '') + '</div>';
+    });
+    const lab = (i) => (buckets[i] ? fmtDay(buckets[i].ts) : '');
+    h += '</div><div class="mkUX"><span>' + lab(0) + '</span><span>' + lab(Math.floor((buckets.length - 1) / 2)) + '</span><span>' + (days ? 'Today' : lab(buckets.length - 1)) + '</span></div></div>';
+    return h;
+  }
+
+  // what stands out: plain sentences, the most actionable first
+  function insights(r) {
+    const out = [];
+    const c = r.cur;
+    if (!c.tok) return out;
+    const areas = Object.entries(r.areas).sort((a, b) => b[1].tok - a[1].tok);
+    if (areas.length > 1) out.push(['info', '<b>' + escH(areas[0][0]) + '</b> used ' + fmtPct(pct(areas[0][1].tok, c.tok)) + ' of your tokens (' + fmtTok(areas[0][1].tok) + ', ' + fmtUsd(areas[0][1].cost) + ').']);
+    const rw = areas.filter(([, v]) => v.tok > c.tok * 0.03 && v.rework).sort((a, b) => pct(b[1].rework, b[1].tok) - pct(a[1].rework, a[1].tok))[0];
+    if (rw && pct(rw[1].rework, rw[1].tok) >= 5) {
+      const what = [rw[1].fixes ? nFix(rw[1].fixes) : '', rw[1].revs ? plural(rw[1].revs, 'revision') : ''].filter(Boolean).join(' and ');
+      out.push(['warn', '<b>' + escH(rw[0]) + '</b> took the most retries (' + what + '). ' + fmtPct(pct(rw[1].rework, rw[1].tok)) + ' of its tokens went to rework.']);
+    }
+    const long = r.sessions.filter((x) => x.prompts >= 25), short = r.sessions.filter((x) => x.prompts > 0 && x.prompts < 10);
+    const per = (list) => list.reduce((a, x) => a + x.tok, 0) / Math.max(1, list.reduce((a, x) => a + x.prompts, 0));
+    if (long.length >= 2 && short.length >= 2 && per(long) > per(short) * 1.5) out.push(['tip', 'A prompt in a long chat (25+ prompts) costs <b>' + (per(long) / per(short)).toFixed(1) + 'x</b> one in a short chat. Start a new chat when the task changes.']);
+    const avg = c.tok / Math.max(1, c.prompts);
+    const ty = Object.entries(r.types).filter(([, v]) => v.prompts >= 3).map(([k, v]) => [k, v.tok / v.prompts]).sort((a, b) => b[1] - a[1])[0];
+    if (ty && ty[1] > avg * 1.4) out.push(['info', '<b>' + escH(TYPE_LABEL[ty[0]] || ty[0]) + '</b> prompts cost ' + (ty[1] / avg).toFixed(1) + 'x the average prompt (' + fmtTok(ty[1]) + ' vs ' + fmtTok(avg) + ').']);
+    const hit = pct(c.cr, c.inp + c.cw + c.cr);
+    if (hit < 80) out.push(['warn', 'Only ' + fmtPct(hit) + ' of input came from cache. Long pauses mid-chat let the cache expire.']);
+    if (c.errs >= 20) out.push(['warn', '<b>' + c.errs + '</b> tool calls failed. Each failure is a round trip Claude pays for again.']);
+    return out.slice(0, 4);
+  }
+
+  // share bar: first try then rework, a 2 px gap between them only when both exist
+  const meter = (ok, re, max) => '<div class="mkUMeter">' + (ok > 0 ? '<i class="ok" style="width:' + pct(ok, max).toFixed(2) + '%"></i>' : '') +
+    (re > 0 ? '<i class="re" style="width:max(2px, ' + pct(re, max).toFixed(2) + '%)"></i>' : '') + '</div>';
+  function delta(curV, prevV, goodWhenDown) {
+    if (!prevV || !isFinite(curV / prevV)) return '';
+    const ch = ((curV - prevV) / prevV) * 100;
+    if (Math.abs(ch) < 1) return '';
+    const up = ch > 0;
+    const tone = goodWhenDown === undefined ? 'flat' : up === goodWhenDown ? 'bad' : 'good';
+    return '<em class="mkUD" data-t="' + tone + '">' + (up ? '+' : '−') + fmtPct(Math.abs(ch)) + '</em>';
+  }
+
+  function paintUsage() {
+    if (!dash || dash.hidden) return;
+    const range = RANGES.find((x) => x[0] === usageDays) || RANGES[0];
+    let h = '<header class="mkUHead"><div><strong>Usage</strong><small>' +
+      (usageData ? 'Updated ' + sinceTxt(usageData.at) + ' · ' + range[2] : usageState === 'loading' ? 'Loading' : 'No data yet') + '</small></div>' +
+      '<div class="mkUSeg" role="tablist" aria-label="Time range">' + RANGES.map((x) => '<button type="button" role="tab" data-d="' + x[0] + '" aria-selected="' + (x[0] === usageDays) + '">' + x[1] + '</button>').join('') + '</div>' +
+      '<button type="button" class="mkUExpand" aria-label="' + (usagePage ? 'Back to popup' : 'Open as page') + '" title="' + (usagePage ? 'Back to popup' : 'Open as page') + '">' +
+      ico(usagePage ? UI.collapse : UI.expand, 16) + '</button>' +
+      '<button type="button" class="mkUClose" aria-label="Close">' + ico(UI.close, 16) + '</button></header>';
+    if (!usageData) {
+      h += '<p class="mkUEmpty">' + (usageState === 'loading' ? 'Reading your chats.' : 'No usage data yet. It is written after Claude replies, by the Milo Kit usage hook. Reply once, then open this again.') + '</p>';
+      dash.innerHTML = h;
+      return wireUsage();
+    }
+    const r = crunch(usageData, usageDays);
+    const c = r.cur, p = r.prev, hasPrev = usageDays && p.tok > 0;
+    const hit = pct(c.cr, c.inp + c.cw + c.cr), hitPrev = pct(p.cr, p.inp + p.cw + p.cr);
+    const reworkRate = pct(c.rework, c.tok), reworkPrev = pct(p.rework, p.tok);
+    const kpi = (label, value, sub, d) => '<div class="mkUKpi"><span>' + label + '</span><div class="mkUKpiV"><b>' + value + '</b>' + (d || '') + '</div><small>' + sub + '</small></div>';
+    h += '<div class="mkUBody">';
+    if (!c.tok) {
+      h += '<p class="mkUEmpty">Nothing in the ' + range[2] + '. Try a longer range.</p></div>';
+      dash.innerHTML = h;
+      return wireUsage();
+    }
+    h += '<div class="mkUKpis">' +
+      kpi('Tokens', fmtTok(c.tok), plural(c.prompts, 'prompt') + ' · ' + plural(r.sessions.length, 'chat'), hasPrev ? delta(c.tok, p.tok) : '') +
+      kpi('API value', fmtUsd(c.cost), fmtUsd(c.cost / Math.max(1, c.prompts)) + ' per prompt', hasPrev ? delta(c.cost, p.cost) : '') +
+      kpi('Cache hit', fmtPct(hit), 'of input reused', hasPrev && hitPrev ? delta(hit, hitPrev, false) : '') +
+      kpi('Rework', fmtPct(reworkRate), nFix(c.fixes) + ' · ' + plural(c.revs, 'revision'), hasPrev && reworkPrev ? delta(reworkRate, reworkPrev, true) : '') +
+      '</div>';
+    h += '<section class="mkUCard"><h4>Tokens per ' + (usageDays === 0 && (r.now - r.first) / 86400 > 120 ? 'week' : 'day') + '<span class="mkULegend"><i class="ok"></i>First try<i class="re"></i>Rework</span></h4>' + chartHtml(r, usageDays) + '</section>';
+    const tips = insights(r);
+    if (tips.length) h += '<section class="mkUCard mkUInsights"><h4>What stands out</h4><ul>' + tips.map((t) => '<li data-t="' + t[0] + '">' + t[1] + '</li>').join('') + '</ul></section>';
+    // projects and kinds of work: share bar, tokens, cost, retry share
+    const rows = (entries, labelOf, iconOf, limit) => {
+      const max = Math.max(1, ...entries.map((e) => e[1].tok));
+      return entries.slice(0, limit).map(([k, v]) => {
+        const rr = pct(v.rework, v.tok);
+        return '<li title="' + escH(labelOf(k) + ': ' + tokenLong(v.tok) + ' tokens, ' + plural(v.prompts, 'prompt') + ', ' + v.fixes + ' fixes, ' + v.revs + ' revisions') + '">' +
+          (iconOf ? '<span class="mkUIco">' + iconOf(k) + '</span>' : '') +
+          '<div class="mkURow"><div class="mkURowTop"><span>' + escH(labelOf(k)) + '</span><b>' + fmtTok(v.tok) + '</b></div>' +
+          meter(v.tok - v.rework, v.rework, max) +
+          '<div class="mkURowSub"><span>' + fmtUsd(v.cost) + ' · ' + (v.prompts ? plural(v.prompts, 'prompt') + ' · ' + fmtTok(v.tok / v.prompts) + ' each' : 'agent work only') + '</span>' +
+          (rr >= 1 ? '<em data-t="' + (rr >= 15 ? 'bad' : rr >= 6 ? 'warn' : 'ok') + '">' + fmtPct(rr) + ' rework</em>' : '') + '</div></div></li>';
+      }).join('');
+    };
+    const areaList = Object.entries(r.areas).sort((a, b) => b[1].tok - a[1].tok);
+    const typeList = Object.entries(r.types).sort((a, b) => b[1].tok - a[1].tok);
+    h += '<div class="mkUSplit"><section class="mkUCard"><h4>Projects<small>' + areaList.length + '</small></h4><ul class="mkUList">' + rows(areaList, (k) => k, null, 7) + '</ul>' +
+      (areaList.length > 7 ? '<p class="mkUMore">+' + (areaList.length - 7) + ' more · ' + fmtTok(areaList.slice(7).reduce((a, e) => a + e[1].tok, 0)) + '</p>' : '') + '</section>' +
+      '<section class="mkUCard"><h4>Kind of work</h4><ul class="mkUList">' + rows(typeList, (k) => TYPE_LABEL[k] || k, (k) => ico(UI[k] || UI.chat, 14), 7) + '</ul></section></div>';
+    // chats that needed the most retries
+    const worst = r.sessions.filter((x) => x.fixes + x.revs > 0).sort((a, b) => b.rework - a.rework).slice(0, 5);
+    if (worst.length) {
+      h += '<section class="mkUCard"><h4>Needed the most retries</h4><ul class="mkUList mkUChats">' + worst.map((x) => {
+        const bits = [escH(x.area), fmtDay(x.s.end || x.s.start)];
+        if (x.fixes) bits.push(nFix(x.fixes));
+        if (x.revs) bits.push(plural(x.revs, 'revision'));
+        if (x.errs) bits.push(plural(x.errs, 'tool error'));
+        return '<li><div class="mkURow"><div class="mkURowTop"><span>' + escH(x.s.title) + '</span><b>' + fmtTok(x.rework) + '</b></div>' +
+          meter(x.tok - x.rework, x.rework, x.tok) +
+          '<div class="mkURowSub"><span>' + bits.join(' · ') + '</span><em data-t="warn">' + fmtPct(pct(x.rework, x.tok)) + ' of ' + fmtTok(x.tok) + '</em></div></div></li>';
+      }).join('') + '</ul></section>';
+    }
+    // files edited again and again, and other friction
+    const hot = Object.entries(r.files).filter((e) => e[1].n >= 4).sort((a, b) => b[1].n - a[1].n).slice(0, 5);
+    const fr = [['Tool errors', c.errs], ['Interrupted', r.friction.int], ['API errors', r.friction.api], ['Compactions', r.friction.cmp]];
+    h += '<div class="mkUSplit">';
+    if (hot.length) {
+      h += '<section class="mkUCard"><h4>Most re-edited files</h4><ul class="mkUList mkUFiles">' + hot.map(([fp, f]) => {
+        const parts = fp.split('/');
+        return '<li title="' + escH(fp) + '"><div class="mkURow"><div class="mkURowTop"><span>' + escH(parts.pop()) + '</span><b>' + f.n + ' edits</b></div>' +
+          '<div class="mkURowSub"><span>' + escH(parts.slice(-2).join('/')) + '</span><em data-t="flat">' + plural(f.chats, 'chat') + '</em></div></div></li>';
+      }).join('') + '</ul></section>';
+    }
+    h += '<section class="mkUCard"><h4>Friction</h4><div class="mkUFriction">' + fr.map(([k, v]) => '<div><b>' + v + '</b><span>' + k + '</span></div>').join('') + '</div>' +
+      '<p class="mkUNote">Subagents used ' + fmtPct(pct(c.sub, c.tok)) + ' of tokens. Output was ' + fmtPct(pct(c.out, c.tok)) + '; the rest is context Claude re-reads each turn.</p></section></div>';
+    h += '<p class="mkUFoot">From ' + plural(usageData.sessions.length, 'chat') + ' in ~/.claude/projects. API value is what the same tokens would cost on the API. Rework counts turns where you asked for a fix or a revision.</p></div>';
+    dash.innerHTML = h;
+    wireUsage();
+  }
+
+  function wireUsage() {
+    qa('.mkUSeg button', dash).forEach((b) => b.addEventListener('click', () => { usageDays = Number(b.dataset.d); paintUsage(); const s = q('.mkUSeg [aria-selected="true"]', dash); if (s) s.focus(); }));
+    const x = q('.mkUClose', dash);
+    if (x) x.addEventListener('click', () => closeUsage(true));
+    const ex = q('.mkUExpand', dash);
+    if (ex) ex.addEventListener('click', () => setUsagePage(!usagePage));
+    const tip = document.createElement('div');
+    tip.className = 'mkUTip';
+    tip.hidden = true;
+    dash.appendChild(tip);
+    qa('.mkUBar', dash).forEach((bar) => {
+      bar.addEventListener('pointerenter', () => {
+        const p = bar.dataset.tip.split('|');
+        tip.innerHTML = '<strong>' + escH(p[0]) + '</strong><div><span>Total</span><b>' + p[1] + '</b></div><div><i class="ok"></i><span>First try</span><b>' + p[2] + '</b></div>' +
+          '<div><i class="re"></i><span>Rework</span><b>' + p[3] + '</b></div><div><span>Prompts</span><b>' + p[4] + '</b></div><div><span>API value</span><b>' + escH(p[5]) + '</b></div>';
+        tip.hidden = false;
+        const br = bar.getBoundingClientRect(), dr = dash.getBoundingClientRect();
+        const w = tip.offsetWidth, ht = tip.offsetHeight;
+        tip.style.left = Math.max(8, Math.min(dr.width - w - 8, br.left - dr.left + br.width / 2 - w / 2)) + 'px';
+        tip.style.top = (br.top - dr.top + dash.scrollTop - ht - 8) + 'px';
+        bar.setAttribute('data-on', '');
+      });
+      bar.addEventListener('pointerleave', () => { tip.hidden = true; bar.removeAttribute('data-on'); });
+    });
+  }
+
+  // popup (anchored to the button) or page (fills the whole Claude panel, content centred). Esc: page -> popup -> closed.
+  function setUsagePage(on) {
+    usagePage = on;
+    dash.toggleAttribute('data-page', on);
+    placeUsage();
+    paintUsage();
+    dash.scrollTop = 0;
+    const b = q('.mkUExpand', dash);
+    if (b) b.focus();
+  }
+  function placeUsage() {
+    if (usagePage) { ['left', 'top', 'bottom', 'width', 'maxHeight'].forEach((k) => { dash.style[k] = ''; }); return; }
+    const w = Math.min(720, window.innerWidth - 24);
+    dash.style.width = w + 'px';
+    // opened from the sessions sidebar (no button in this pane): float centred over the chat, just below its header
+    if (!dashAnchor || !dashAnchor.isConnected) {
+      const top = Math.min(56, Math.round(window.innerHeight * 0.08));
+      dash.style.left = Math.round((window.innerWidth - w) / 2) + 'px';
+      dash.style.top = top + 'px';
+      dash.style.bottom = '';
+      dash.style.maxHeight = (window.innerHeight - top - 16) + 'px';
+      return;
+    }
+    const r = dashAnchor.getBoundingClientRect();
+    dash.style.left = Math.max(12, Math.min(r.right - w + 40, window.innerWidth - w - 12)) + 'px';
+    // open below the button; flip above it when the button sits low and there is more room on top
+    const below = window.innerHeight - r.bottom - 22, above = r.top - 22;
+    if (below >= 420 || below >= above) {
+      dash.style.bottom = '';
+      dash.style.top = (r.bottom + 10) + 'px';
+      dash.style.maxHeight = below + 'px';
+    } else {
+      dash.style.top = '';
+      dash.style.bottom = (window.innerHeight - r.top + 10) + 'px';
+      dash.style.maxHeight = above + 'px';
+    }
+  }
+  function closeUsage(focus) {
+    if (!dash || dash.hidden) return;
+    dash.hidden = true;
+    usagePage = false;
+    dash.removeAttribute('data-page');
+    if (dashAnchor) dashAnchor.setAttribute('aria-pressed', 'false');
+    if (focus && dashAnchor) dashAnchor.focus();
+  }
+  function toggleUsage(anchor) {
+    if (dash && !dash.hidden) { closeUsage(true); return; }
+    openUsage(anchor);
+  }
+  // the sessions sidebar's request arrives as Claude's own "open Account & usage" message plus mk:1; the webview patch
+  // turns that into a "mk-dash" event instead of Claude's dialog (build-chat-extras section 2b d).
+  window.addEventListener('mk-dash', () => {
+    if (dash && !dash.hidden) { dash.scrollTop = 0; return; }
+    openUsage(null);
+  });
+  function openUsage(anchor) {
+    if (!dash) {
+      dash = document.createElement('div');
+      dash.className = 'mkUsage';
+      dash.setAttribute('role', 'dialog');
+      dash.setAttribute('aria-label', 'Usage dashboard');
+      document.body.appendChild(dash);
+      document.addEventListener('pointerdown', (e) => {
+        if (dash.hidden || dash.contains(e.target) || (dashAnchor && dashAnchor.contains(e.target))) return;
+        closeUsage(false);
+      }, true);
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !dash.hidden) { e.stopPropagation(); if (usagePage) setUsagePage(false); else closeUsage(true); } }, true);
+      window.addEventListener('resize', () => { if (!dash.hidden) placeUsage(); });
+    }
+    dashAnchor = anchor;
+    usageDays = 7;
+    dash.hidden = false;
+    if (!usageData) usageState = 'loading';
+    placeUsage();
+    paintUsage();
+    const sel = q('.mkUSeg [aria-selected="true"]', dash);
+    if (sel) sel.focus();
+    loadUsage(() => { if (!dash.hidden) { paintUsage(); const s = q('.mkUSeg [aria-selected="true"]', dash); if (s && dash.contains(document.activeElement)) s.focus(); } });
+  }
+
+  // 13. Final reply bubble: the last text reply of each finished turn sits in a static bubble (no sticky, no motion).
+  //     A turn ends at the next user message; the reply counts only if no tool row follows it. The current turn
+  //     is skipped while Claude is busy so the bubble never hops between blocks mid-reply. Attribute only.
+  //     One exception: a reply streaming in a turn with no tool calls yet forms in place. It gets the bubble's full
+  //     shape from its first line, fill held back by data-mk-forming, so when the turn ends only the fill fades in
+  //     and the text never moves. If a tool call follows (a preamble), it eases back to plain text.
+  function syncFinal() {
+    const sc = scroller();
+    if (!sc) return;
+    let busy = false;
+    try { busy = !!(window.__mkS && window.__mkS.busy && window.__mkS.busy.value); } catch (e) {}
+    const rows = qa('[class*="timelineMessage_"], [class*="userMessageContainer_"]', sc).filter((el) => {
+      const up = el.parentElement && el.parentElement.closest('[class*="timelineMessage_"], [class*="userMessageContainer_"]');
+      return !up || !sc.contains(up);
+    });
+    const finals = new Set();
+    let cand = null, turnTools = false;
+    rows.forEach((el) => {
+      if (String(el.className).indexOf('userMessageContainer_') >= 0) { if (cand) finals.add(cand); cand = null; turnTools = false; return; }
+      const md = q('[data-mk-md]', el);
+      const tool = !!q('[class*="toolSummary_"], [class*="toolBody_"]', el);
+      if (tool) turnTools = true;
+      const text = md && !tool && !md.closest('[class*="thinking"]');
+      cand = text ? md : null;
+    });
+    const forming = cand && busy && !turnTools ? cand : null;
+    if (cand && (!busy || forming)) finals.add(cand);
+    // set before data-mk-bubble (same frame): a forming bubble never flashes its fill
+    qa('[data-mk-forming]').forEach((m) => { if (m !== forming) m.removeAttribute('data-mk-forming'); });
+    if (forming && !forming.hasAttribute('data-mk-forming')) forming.setAttribute('data-mk-forming', '');
+    // the row gets data-mk-bubble-row: Claude's copy / bookmark row and the avatar are placed against the bubble
+    const rowsOn = new Set(Array.from(finals).map((m) => m.closest('[class*="timelineMessage_"]')).filter(Boolean));
+    qa('[data-mk-bubble]').forEach((m) => { if (!finals.has(m)) m.removeAttribute('data-mk-bubble'); });
+    qa('[data-mk-bubble-row]').forEach((r) => { if (!rowsOn.has(r)) r.removeAttribute('data-mk-bubble-row'); });
+    finals.forEach((m) => { if (!m.hasAttribute('data-mk-bubble')) m.setAttribute('data-mk-bubble', ''); });
+    rowsOn.forEach((r) => { if (!r.hasAttribute('data-mk-bubble-row')) r.setAttribute('data-mk-bubble-row', ''); });
+    // --mk-act-gap: how far the row's content ends below the bubble. The copy / bookmark row adds it to its bottom
+    // margin, so at rest it sits 8px inside the bubble's bottom edge whatever Claude puts under the bubble.
+    // Measured from the other children only: the row's own height includes that margin, and reading it back grew
+    // the row a little every second (empty space under the last reply, chat creeping up).
+    finals.forEach((m) => {
+      const r = m.closest('[data-mk-bubble-row]');
+      if (!r) return;
+      const base = m.getBoundingClientRect().bottom;
+      let end = base;
+      Array.from(r.children).forEach((k) => {
+        if (k.hasAttribute('data-message-actions')) return;
+        const b = k.getBoundingClientRect();
+        if (b.width || b.height) end = Math.max(end, b.bottom + (parseFloat(getComputedStyle(k).marginBottom) || 0));
+      });
+      const gap = Math.max(0, Math.round(end - base)) + 'px';
+      if (r.style.getPropertyValue('--mk-act-gap') !== gap) r.style.setProperty('--mk-act-gap', gap);
+      // --mk-av-bottom: the bubble's bottom edge measured up from the row's padding edge, so the avatar's bottom
+      // lines up with the bubble's whatever runs below it. The avatar is absolute: no feedback into layout.
+      const rr = r.getBoundingClientRect();
+      const av = Math.max(0, Math.round(rr.bottom - (parseFloat(getComputedStyle(r).borderBottomWidth) || 0) - base)) + 'px';
+      if (r.style.getPropertyValue('--mk-av-bottom') !== av) r.style.setProperty('--mk-av-bottom', av);
+    });
+  }
+
+  // 12. Model menu: Claude opens it as the slash-command popup, pinned to the message box's left edge at full width.
+  //     Anchor it to the model pill instead: just above the pill, left-aligned, flipped to right-aligned near the edge.
+  //     Inline styles only on the popup (React gives it no style prop, so nothing overwrites them).
+  function placeModelMenu() {
+    const pill = q('[class*="modelPill_"][aria-expanded="true"]');
+    const list = pill && document.getElementById(pill.getAttribute('aria-controls') || '');
+    const menu = list && list.closest('[class*="menuPopup_"]');
+    const host = menu && menu.offsetParent;
+    if (!host) return;
+    const hr = host.getBoundingClientRect(), pr = pill.getBoundingClientRect();
+    const w = Math.min(320, hr.width - 8);
+    let left = pr.left - hr.left;
+    if (left + w > hr.width - 4) left = Math.max(4, pr.right - hr.left - w);
+    const s = menu.style;
+    s.right = 'auto';
+    s.width = w + 'px';
+    s.left = Math.round(left) + 'px';
+    s.bottom = Math.round(hr.bottom - pr.top + 6) + 'px';
+    s.marginBottom = '0';
+  }
+
+  // 14. Quotes and replies. Select text anywhere in the chat and an "Add to chat" pill appears over it. Reply on a
+  //     bubble (Claude's final reply or your own message) quotes the whole message. Each quote becomes a real
+  //     attachment in the message box: a small text file in Claude's own attachment row (same pill as files and
+  //     screenshots). Claude receives it as a titled document block, and your sent message shows it as a pill.
+  //     Pill label "Claude: “first words…”" / "You: …" / "Chat: …"; syncQuotes() tags those pills for the quote icon.
+  const QUOTE_RE = /^(Claude|You|Chat): “/;
+  const focusComposer = () => { const b = composerInput(); if (b) b.focus(); };
+  const readAsUrl = (file) => new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(file); });
+  async function addQuote(text, from) {
+    const s = window.__mkS;
+    const body = String(text || '').replace(/ /g, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+    if (!body || !s || !s.composerAttachments) return false;
+    const flat = norm(body);
+    const name = from + ': “' + (flat.length > 48 ? flat.slice(0, 46).trimEnd() + '…' : flat) + '”';
+    const lead = from === 'You' ? 'Quoted from one of my earlier messages in this chat.'
+      : from === 'Claude' ? 'Quoted from one of your earlier replies in this chat.' : 'Quoted from earlier in this chat.';
+    const file = new File([lead + ' My message refers to it.\n\n' + body], name, { type: 'text/plain' });
+    const list = s.composerAttachments.value || [];
+    if (list.some((a) => a && a.file && a.file.name === name && a.file.size === file.size)) return true; // already added
+    try { s.composerAttachments.value = list.concat([{ file, dataUrl: await readAsUrl(file) }]); } catch (e) { return false; }
+    return true;
+  }
+
+  // where a node sits: your bubble (or a held one) = You, anything else in the chat = Claude
+  const quoteFrom = (node) => {
+    const el = node && (node.nodeType === 1 ? node : node.parentElement);
+    return el && el.closest('[class^="userMessage_"], [class*=" userMessage_"], .mkHeld') ? 'You' : 'Claude';
+  };
+  function selInfo() {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed || !sel.rangeCount) return null;
+    const sc = scroller();
+    const range = sel.getRangeAt(0);
+    const anc = range.commonAncestorContainer;
+    const ancEl = anc && (anc.nodeType === 1 ? anc : anc.parentElement);
+    if (!sc || !ancEl || !sc.contains(ancEl) || ancEl.closest('[contenteditable], textarea, input')) return null;
+    const text = sel.toString();
+    if (!text.trim()) return null;
+    const rects = Array.from(range.getClientRects()).filter((r) => r.width || r.height);
+    if (!rects.length) return null;
+    const a = quoteFrom(sel.anchorNode), f = quoteFrom(sel.focusNode);
+    return { text, from: a === f ? a : 'Chat', rects };
+  }
+
+  const qbtn = document.createElement('button');
+  qbtn.type = 'button';
+  qbtn.className = 'mkQuoteBtn';
+  qbtn.hidden = true;
+  qbtn.setAttribute('aria-label', 'Add selection to chat');
+  qbtn.innerHTML = '<i aria-hidden="true"></i><span>Add to chat</span>';
+  document.body.appendChild(qbtn);
+  let qsel = null, qTimer = 0, dragging = false;
+  // centred over the selection's first line; below its last line when that would leave the chat's top edge.
+  // Hidden while the selection is scrolled out of view or under the message box.
+  function placeQuoteBtn() {
+    qsel = off('quote') ? null : selInfo();
+    if (!qsel) { qbtn.hidden = true; return; }
+    const sr = scroller().getBoundingClientRect();
+    const input = q('[class*="inputContainer_"]');
+    const floor = Math.min(sr.bottom, input ? input.getBoundingClientRect().top : sr.bottom) - 4;
+    const first = qsel.rects[0], last = qsel.rects[qsel.rects.length - 1];
+    const l = Math.min.apply(null, qsel.rects.map((r) => r.left)), r = Math.max.apply(null, qsel.rects.map((x) => x.right));
+    qbtn.hidden = false;
+    const w = qbtn.offsetWidth, h = qbtn.offsetHeight;
+    let top = first.top - h - 8;
+    if (top < sr.top + 4) top = last.bottom + 8;
+    if (top < sr.top + 4 || top + h > floor) { qbtn.hidden = true; return; }
+    const left = Math.max(sr.left + 6, Math.min(Math.round((l + r) / 2 - w / 2), sr.right - w - 6));
+    qbtn.style.left = left + 'px';
+    qbtn.style.top = Math.round(top) + 'px';
+  }
+  const queuePlace = (ms) => { clearTimeout(qTimer); qTimer = setTimeout(placeQuoteBtn, ms); };
+  document.addEventListener('mousedown', (e) => {
+    if (e.target instanceof Element && e.target.closest('.mkQuoteBtn')) { e.preventDefault(); return; } // keep the selection
+    dragging = true;
+    qbtn.hidden = true;
+  }, true);
+  document.addEventListener('mouseup', () => { dragging = false; queuePlace(10); }, true);
+  document.addEventListener('selectionchange', () => { if (!dragging) queuePlace(150); });
+  document.addEventListener('scroll', () => { if (!qbtn.hidden) placeQuoteBtn(); }, true);
+  window.addEventListener('resize', () => { if (!qbtn.hidden) placeQuoteBtn(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') qbtn.hidden = true; }, true);
+  qbtn.addEventListener('click', async () => {
+    const info = qsel || selInfo();
+    qbtn.hidden = true;
+    if (!info || !(await addQuote(info.text, info.from))) return;
+    try { window.getSelection().removeAllRanges(); } catch (e) {}
+    focusComposer();
+  });
+
+  // Reply buttons: first in Claude's copy / bookmark row on final reply bubbles; on your bubble's bottom-right corner
+  // (on the bubble's container: the bubble itself clips overflow). Icon only, no text, so message textContent
+  // (chat map, held-message matching) is unchanged.
+  function replyButton(getText, from) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'mkReply';
+    b.title = 'Reply';
+    b.setAttribute('aria-label', 'Reply');
+    b.addEventListener('click', async (e) => { e.stopPropagation(); if (await addQuote(getText(), from)) focusComposer(); });
+    return b;
+  }
+  const userText = (um) => {
+    const c = um.cloneNode(true);
+    c.querySelectorAll('button, [class*="userMessageAttachments_"]').forEach((n) => n.remove());
+    return c.textContent;
+  };
+  function syncReplies() {
+    const sc = scroller();
+    if (!sc) return;
+    const on = !off('quote');
+    qa('.mkReply', sc).forEach((b) => {
+      const p = b.parentElement;
+      const stale = p && p.hasAttribute('data-message-actions') && !(p.parentElement && p.parentElement.hasAttribute('data-mk-bubble-row'));
+      if (!on || stale) b.remove();
+    });
+    if (!on) return;
+    qa('[data-mk-bubble-row] > [data-message-actions]', sc).forEach((bar) => {
+      if (q(':scope > .mkReply', bar)) return;
+      const row = bar.parentElement;
+      bar.insertBefore(replyButton(() => { const md = q('[data-mk-bubble]', row); return md ? md.innerText : ''; }, 'Claude'), bar.firstChild);
+    });
+    // your bubble: Reply goes first inside Claude's "Message actions" holder, which becomes one pill styled like
+    // Claude's copy / bookmark row (data-mk-uacts). No holder (held / read-only messages): Reply alone on the container.
+    qa('[class^="userMessage_"], [class*=" userMessage_"]', sc).forEach((um) => {
+      const box = um.parentElement;
+      if (!box || String(box.className).indexOf('userMessageContainer_') < 0) return;
+      const more = q(':scope > * > button[title="Message actions"]', box);
+      const host = more ? more.parentElement : box;
+      if (more && !host.hasAttribute('data-mk-uacts')) host.setAttribute('data-mk-uacts', '');
+      qa(':scope > .mkReply', box).forEach((b) => { if (host !== box) b.remove(); });
+      if (q(':scope > .mkReply', host)) return;
+      const b = replyButton(() => userText(um), 'You');
+      if (host === box) { b.setAttribute('data-solo', ''); box.appendChild(b); } else host.insertBefore(b, host.firstChild);
+    });
+  }
+  // quote pills (message box and sent messages) get data-mk-quote: quote icon, blue tint
+  function syncQuotes() {
+    qa('[class^="pill_"], [class*=" pill_"]').forEach((p) => {
+      const l = q('[class*="label_"]', p);
+      const isQ = !!l && QUOTE_RE.test(l.textContent || '');
+      if (isQ !== p.hasAttribute('data-mk-quote')) { if (isQ) p.setAttribute('data-mk-quote', ''); else p.removeAttribute('data-mk-quote'); }
+    });
+  }
+
+  setInterval(() => { syncAgents(); syncTokens(); syncAcctDash(); syncMcp(); syncFinal(); syncReplies(); syncQuotes(); }, 1000);
 
   let timer = 0;
-  function schedule() { if (!timer) timer = setTimeout(() => { timer = 0; build(); syncAgents(); syncTokens(); syncMcp(); }, 200); }
+  function schedule() { if (!timer) timer = setTimeout(() => { timer = 0; build(); syncAgents(); syncTokens(); syncAcctDash(); syncMcp(); syncTypes(); syncFinal(); syncReplies(); syncQuotes(); }, 200); }
   // React to Claude's DOM only. Mutations inside the kit's own elements (map, chips, panel, held bubbles,
   // thumbnails) would otherwise re-trigger build() + syncAgents() in an endless 200 ms loop.
-  const OWN = '.mkMap, .mkAgents, .mkTasks, .mkPanel, .mkHeld, .mkThumb, .mkMapToggle, .mkTokens, .mkMcp';
+  const OWN = '.mkMap, .mkAgents, .mkTasks, .mkPanel, .mkHeld, .mkThumb, .mkMapToggle, .mkTokens, .mkDashBtn, .mkMcp, .mkUsage, .mkQuoteBtn, .mkReply';
   const isOwn = (n) => { const el = n && (n.nodeType === 1 ? n : n.parentElement); return !!(el && el.closest(OWN)); };
   new MutationObserver((list) => {
+    placeModelMenu();
     if (list.every((m) => isOwn(m.target))) return;
     schedule();
   }).observe(document.documentElement, { childList: true, subtree: true, characterData: true });
-  window.addEventListener('resize', schedule);
+  window.addEventListener('resize', () => { placeModelMenu(); schedule(); });
   schedule();
 })();

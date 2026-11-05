@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src {{csp}}; script-src 'nonce-{{nonce}}'; img-src {{csp}} data:; font-src {{csp}};">
+<link rel="stylesheet" href="{{style}}">
+<title>Milo Kit settings</title>
+</head>
+<body>
+<div class="app" id="app" hidden>
+  <button class="close" id="close" aria-label="Close settings" title="Close (Esc)"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 10.586l4.95-4.95 1.414 1.414-4.95 4.95 4.95 4.95-1.414 1.414-4.95-4.95-4.95 4.95-1.414-1.414 4.95-4.95-4.95-4.95L7.05 5.636z"/></svg></button>
+  <nav>
+    <div class="brand"><img src="{{milo}}" alt="">Milo Kit</div>
+    <a href="#" class="on" data-s="look"><i class="ri" aria-hidden="true">&#xefc5;</i>Look</a>
+    <a href="#" data-s="icons"><i class="ri" aria-hidden="true">&#xf3db;</i>Icons and fonts</a>
+    <a href="#" data-s="chat"><i class="ri" aria-hidden="true">&#xeb51;</i>Chat features</a>
+    <a href="#" data-s="scroll"><i class="ri" aria-hidden="true">&#xef94;</i>Milo's Scroll</a>
+    <a href="#" data-s="status"><i class="ri" aria-hidden="true">&#xee8b;</i>Status bar</a>
+    <div class="grow"></div>
+    <span class="ver" id="ver"></span>
+  </nav>
+
+  <main id="main">
+    <section id="look" class="on">
+      <h2>Look</h2>
+      <p class="sub">Start from a preset, then change any color.</p>
+      <h3>Presets</h3>
+      <div class="presets" id="presets"></div>
+      <h3>Colors</h3>
+      <div id="colors"></div>
+      <h3>Shape</h3>
+      <div class="row"><div class="l"><b>Corners</b><small>Cards, tabs, inputs</small></div><div class="seg" data-bind="corners" data-opts="sharp:Sharp,soft:Soft,round:Round"></div></div>
+    </section>
+
+    <section id="icons">
+      <h2>Icons and fonts</h2>
+      <p class="sub">Packs you already have. Nothing is downloaded when you switch.</p>
+      <h3>Interface icons</h3>
+      <div class="cards" id="productIcons"></div>
+      <h3>File icons</h3>
+      <div class="cards" id="fileIcons"></div>
+      <h3>App icon</h3>
+      <p class="note" id="appIconNote" hidden>The app icon can only be changed on macOS.</p>
+      <div class="cards" id="appIcons"></div>
+      <h3>Fonts</h3>
+      <div class="row"><div class="l"><b>Interface font</b></div><select data-bind="fonts.ui"><option>Geist</option><option>Inter</option><option>SF Pro</option><option>System default</option></select></div>
+      <div class="row"><div class="l"><b>Code font</b></div><select data-bind="fonts.code"><option>Geist Mono</option><option>JetBrains Mono</option><option>SF Mono</option><option>Menlo</option></select></div>
+      <div class="row"><div class="l"><b>Code size</b></div><div class="seg" data-bind="fonts.size" data-num data-opts="13:13,14:14,15:15,16:16"></div></div>
+    </section>
+
+    <section id="chat">
+      <h2>Chat features</h2>
+      <p class="sub">What the kit adds to Claude Code. Turn off anything you don't use.</p>
+      <h3>Look</h3>
+      <div class="row"><div class="l"><b>Avatars</b><small>Your initials beside your messages</small></div><div class="pair"><input class="initials" data-bind="initials" maxlength="3" aria-label="Initials"><button class="tg" data-bind="features.avatars" aria-label="Avatars"></button></div></div>
+      <div class="row"><div class="l"><b>Milo on empty chat</b><small>Shown before your first message</small></div><button class="tg" data-bind="features.milo"></button></div>
+      <div class="row"><div class="l"><b>Tab state icons</b><small>Idle, working, done, needs you</small></div><button class="tg" data-bind="features.tabIcons"></button></div>
+      <div class="row"><div class="l"><b>Image previews</b><small>Thumbnails under "Read file.png"</small></div><button class="tg" data-bind="features.thumbs"></button></div>
+      <h3>Header</h3>
+      <div class="row"><div class="l"><b>Token count</b><small>Tokens spent in this chat, and the usage dashboard</small></div><button class="tg" data-bind="features.tokens"></button></div>
+      <div class="row"><div class="l"><b>MCP avatars</b><small>Servers used in this chat</small></div><button class="tg" data-bind="features.mcp"></button></div>
+      <div class="row"><div class="l"><b>Tasks and agents</b><small>Tasks badge and the agents chip</small></div><button class="tg" data-bind="features.tasks"></button></div>
+      <h3>Working in the chat</h3>
+      <div class="row"><div class="l"><b>Chat map</b><small>Minimap of the whole conversation</small></div><button class="tg" data-bind="features.map"></button></div>
+      <div class="row"><div class="l"><b>Pinned prompt</b><small>Your last prompt pins while you scroll up</small></div><button class="tg" data-bind="features.pin"></button></div>
+      <div class="row"><div class="l"><b>Expand long messages</b><small>Click to open in full</small></div><button class="tg" data-bind="features.expand"></button></div>
+      <div class="row"><div class="l"><b>Queued messages</b><small>Edit or delete before Claude takes them</small></div><button class="tg" data-bind="features.queue"></button></div>
+      <div class="row"><div class="l"><b>Rename tabs</b><small>Right-click or F2 on a Claude tab</small></div><button class="tg" data-bind="features.rename"></button></div>
+    </section>
+
+    <section id="scroll">
+      <h2>Milo's Scroll</h2>
+      <p class="sub">The desktop card that tells you when Claude is done or needs you.</p>
+      <p class="note" id="scrollNote" hidden>Milo's Scroll runs on macOS only.</p>
+      <div id="scrollBody">
+        <div class="row"><div class="l"><b>Show Milo's Scroll</b></div><button class="tg" data-bind="scroll.enabled"></button></div>
+        <div class="dep" data-dep="scroll.enabled">
+          <h3>Show it when Claude</h3>
+          <div class="row"><div class="l"><b>Finishes a reply</b></div><button class="tg" data-event="complete"></button></div>
+          <div class="row"><div class="l"><b>Asks you a question</b></div><button class="tg" data-event="question"></button></div>
+          <div class="row"><div class="l"><b>Needs permission</b></div><button class="tg" data-event="permission"></button></div>
+          <div class="row"><div class="l"><b>Sits idle</b></div><button class="tg" data-event="idle"></button></div>
+          <div class="row"><div class="l"><b>Compacts the chat</b></div><button class="tg" data-event="limit"></button></div>
+          <div class="row"><div class="l"><b>Only when I'm away</b><small>Stay quiet while VS Code is in front</small></div><button class="tg" data-bind="scroll.only_when_away"></button></div>
+          <h3>Placement</h3>
+          <div class="row"><div class="l"><b>Position</b><small>On your screen</small></div><div class="spots" id="spots"></div></div>
+          <div class="row"><div class="l"><b>Stays on screen</b></div><div class="seg" data-bind="scroll.seconds" data-num data-opts="4:4 s,8:8 s,15:15 s,0:Until clicked"></div></div>
+          <div class="row"><div class="l"><b>Sound</b></div><div class="seg" data-bind="scroll.sound" data-opts="off:Off,chime:Soft chime"></div></div>
+          <div class="row"><div class="l"><b>Try it</b><small>Shows a card with your saved settings</small></div><button class="btn s" id="test">Test card</button></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="status">
+      <h2>Status bar</h2>
+      <p class="sub">The kit trims the status bar to your Claude usage.</p>
+      <div class="row"><div class="l"><b>Usage only</b><small>Hide other status bar items</small></div><button class="tg" data-bind="status.usageOnly"></button></div>
+      <div class="row"><div class="l"><b>Show</b><small>Which limit the status bar shows</small></div><div class="seg" data-bind="status.show" data-opts="session:Session,weekly:Weekly,both:Both"></div></div>
+      <div class="row"><div class="l"><b>Progress bar</b></div><button class="tg" data-bind="status.progressBar"></button></div>
+      <div class="row"><div class="l"><b>Turn yellow at</b></div><div class="seg" data-bind="status.yellow" data-num data-opts="70:70%,80:80%,90:90%"></div></div>
+      <div class="row"><div class="l"><b>Turn red at</b></div><div class="seg" data-bind="status.red" data-num data-opts="85:85%,90:90%,95:95%"></div></div>
+      <div class="row"><div class="l"><b>Usage summary after replies</b><small>Adds up usage from local history for the dashboard</small></div><button class="tg" data-bind="status.summary"></button></div>
+    </section>
+  </main>
+
+  <aside>
+    <span class="lbl">Preview</span>
+    <div class="chat">
+      <div class="msg me"><span class="av me" id="pvInitials">JK</span><div class="bubble">Rename the hook and run tests</div></div>
+      <div class="msg"><span class="av cl"></span><div class="t"><h4>Done</h4>Renamed in <code>hooks.ts</code>. All 42 tests pass. <a href="#" tabindex="-1">View diff</a></div></div>
+      <div class="mapdot" id="pvMap" title="Chat map"></div>
+    </div>
+    <div class="input"><span>Ask Claude...</span><span class="send"></span></div>
+    <div class="scroll-card" id="pvScroll"><img src="{{milo}}" alt=""><div><b>Claude is done</b><small>Your project · just now</small></div></div>
+    <div class="status"><span id="pvUsage">Claude 84%</span><span class="bar" id="pvBar"><i></i></span></div>
+  </aside>
+
+  <footer>
+    <span class="note" id="changes">No changes</span>
+    <button class="btn g" id="reset">Reset to defaults</button>
+    <button class="btn s" id="discard" disabled>Discard</button>
+    <button class="btn p" id="save" disabled>Save</button>
+  </footer>
+</div>
+<div class="loading" id="loading">Loading settings...</div>
+<script nonce="{{nonce}}" src="{{script}}"></script>
+</body>
+</html>

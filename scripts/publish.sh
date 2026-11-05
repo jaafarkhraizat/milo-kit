@@ -17,7 +17,9 @@ fi
 git -C "$WORK" pull --ff-only --quiet || true
 
 # .!* = partial-copy temp files (iCloud / Finder); *.bak = local backups. Never publish either.
-rsync -a --delete --exclude .git --exclude .DS_Store --exclude '.!*' --exclude '*.bak' "$KIT/" "$WORK/"
+# docs/ = internal design notes. Never published.
+node "$KIT/scripts/build-extension.js"
+rsync -a --delete --exclude .git --exclude .DS_Store --exclude '.!*' --exclude '*.bak' --exclude /docs/ "$KIT/" "$WORK/"
 # last guard: nothing personal or machine-specific goes public
 if grep -rIl -E "/Users/|Archive Zero|iCloud Drive|jaafarkhraizat@|sk-ant-|ghp_" "$WORK" --exclude-dir=.git --exclude=publish.sh --exclude=sync-from-live.js; then
   echo "Refusing to publish: personal data in the files above." >&2
