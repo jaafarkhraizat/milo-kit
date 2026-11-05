@@ -374,9 +374,9 @@ const typeRules = {
   [`${C}"var"]::before`]: { ...mask('braces-line') },
   // time, date, duration: cyan, mono, own icon each
   [`${C}"time"], ${C}"date"], ${C}"dur"]`]: { ...chip('#86d8ec', 'rgba(86, 182, 214, 0.11)', 'rgba(86, 182, 214, 0.22)'), 'font-weight': '600', 'white-space': 'nowrap' },
-  [`${C}"time"]::before`]: { ...mask('time-line') },
-  [`${C}"date"]::before`]: { ...mask('calendar-line') },
-  [`${C}"dur"]::before`]: { ...mask('timer-line') },
+  [`${C}"time"]::before`]: { ...mask('time-line'), 'margin-right': '0.2em' },
+  [`${C}"date"]::before`]: { ...mask('calendar-line'), 'margin-right': '0.2em' },
+  [`${C}"dur"]::before`]: { ...mask('timer-line'), 'margin-right': '0.2em' },
   // status words: pill with a dot
   [`${C}"status"]`]: { 'font-family': 'inherit', 'font-size': '0.8em', 'font-weight': '600', 'padding': '1px 8px 1px 7px', 'border-radius': '999px', 'white-space': 'nowrap', 'text-transform': 'capitalize' },
   [`${C}"status"]::before`]: { 'width': '0.45em', 'height': '0.45em', 'border-radius': '50%', 'margin-right': '0.45em', 'vertical-align': '0.1em' },
@@ -465,19 +465,20 @@ const typeRules = {
   '[data-mk-bubble-row] > :not([data-message-actions])': { 'grid-column': '1' },
   '[data-mk-bubble-row] > [data-message-actions]': {
     'grid-column': '2', 'grid-row': '1 / span 40', 'justify-self': 'end', 'align-self': 'end',
-    // z-index 1: under your pinned prompt (Claude's sticky header is z-index 2), never on top of it
-    // bottom: the chat scrolls under the floating message box, so the actions stop well above it (not centred,
-    // within easy reach). Short bubbles are unaffected: sticky never moves the actions outside their bubble.
-    'position': 'sticky', 'bottom': 'clamp(120px, 28vh, 280px)', 'z-index': '1', 'height': 'auto',
-    // margin-bottom: --mk-act-gap (set by syncFinal) is how far the grid area runs past the bubble, + 8px of air inside it
-    'display': 'flex', 'align-items': 'center', 'gap': '0', 'margin': '10px 7px calc(var(--mk-act-gap, 14px) + 8px) 0', 'padding': '2px',
+    // z-index 1: under your pinned prompt (Claude's sticky header is z-index 2), never on top of it.
+    // Placed by chat-extras placeActs() via --mk-act-y: 8px inside the bubble's bottom, never lower than 12px above
+    // the message box, never above the bubble's top. translateY only: no layout change, no feedback.
+    'position': 'relative', 'z-index': '1', 'height': 'auto', 'transform': 'translateY(var(--mk-act-y, 0px))',
+    'display': 'flex', 'align-items': 'center', 'gap': '0', 'margin': '0 8px 0 0', 'padding': '2px',
     // raised: a hairline + soft shadow so the pill reads as floating over the text it covers, not as clipped text
     'border-radius': '9px', 'background': 'color-mix(in srgb, #d97757 5.5%, color-mix(in srgb, #fff 4%, var(--app-primary-background, #21252c)))',
     'box-shadow': 'inset 0 0 0 1px rgba(255, 255, 255, 0.08), 0 6px 16px -6px rgba(0, 0, 0, 0.55)',
     // hidden until the bubble is hovered (or a button has keyboard focus); always laid out, so they appear in place
     'opacity': '0', 'transition': 'opacity 120ms cubic-bezier(.4, 0, .2, 1)',
   },
-  '[data-mk-bubble-row]:is(:hover, :focus-within) > [data-message-actions]': { 'opacity': '1' },
+  // hover and keyboard focus both show the pill at once (no delay: Jaafar wants it immediate)
+  '[data-mk-bubble-row]:hover > [data-message-actions]': { 'opacity': '1' },
+  '[data-mk-bubble-row]:focus-within > [data-message-actions]': { 'opacity': '1' },
   // Claude ships a solid copy icon next to an outline bookmark; both are redrawn as matching RemixIcon line glyphs
   // (inner svg hidden). Shown only while the bubble is hovered. Copied = green check, bookmarked = filled blue.
   '[data-mk-bubble-row] > [data-message-actions] > button': {
@@ -504,16 +505,18 @@ const typeRules = {
   '[data-mk-bubble-row] > [data-message-actions] > .mkReply::before': { 'content': "''", 'width': '15px', 'height': '15px', 'background': 'currentColor', ...mask('reply-line') },
   // Your bubble's actions: Claude's "Message actions" holder (data-mk-uacts, set by syncReplies) becomes the same
   // raised pill as Claude's copy / bookmark row: Reply + Message actions as 23 px ghost buttons with RemixIcon line
-  // glyphs (Claude's own svg hidden). Hangs off the bubble's bottom-right corner, shown on hover, keyboard focus or
-  // while its menu is open. z-index 1 keeps it under the pinned prompt.
+  // glyphs (Claude's own svg hidden). Sits 8px inside the bubble's bottom-right corner like Claude's pill, but never
+  // follows the scroll. The holder is the container's child, not the bubble's: syncReplies measures the bubble's
+  // edges into --mk-ub-r / --mk-ub-b. Shown on hover, keyboard focus or while its menu is open. z-index 1: under the pinned prompt.
   '[data-mk-uacts]': {
-    'position': 'absolute !important', 'top': 'auto !important', 'right': '8px !important', 'bottom': '-14px !important', 'z-index': '1 !important',
+    'position': 'absolute !important', 'top': 'auto !important', 'right': 'calc(var(--mk-ub-r, 0px) + 8px) !important', 'bottom': 'calc(var(--mk-ub-b, 0px) + 8px) !important', 'z-index': '1 !important',
     'display': 'flex', 'align-items': 'center', 'gap': '0', 'padding': '2px', 'border-radius': '9px',
     'background': 'color-mix(in srgb, #fff 4%, var(--app-primary-background, #21252c))',
     'box-shadow': 'inset 0 0 0 1px rgba(255, 255, 255, 0.08), 0 6px 16px -6px rgba(0, 0, 0, 0.55)',
     'opacity': '0', 'transition': 'opacity 120ms cubic-bezier(.4, 0, .2, 1)',
   },
-  '[data-mk-uacts]:is(:focus-within, :has([aria-expanded="true"])), [class*="userMessageContainer_"]:hover > [data-mk-uacts]': { 'opacity': '1' },
+  '[class*="userMessageContainer_"]:hover > [data-mk-uacts]': { 'opacity': '1' },
+  '[data-mk-uacts]:is(:focus-within, :has([aria-expanded="true"]))': { 'opacity': '1' },
   '[data-mk-uacts] > button': {
     'width': '23px', 'height': '24px', 'min-width': '0', 'padding': '0', 'margin': '0', 'display': 'grid', 'place-items': 'center',
     'border': '0 !important', 'border-radius': '7px !important', 'background': 'transparent !important', 'box-shadow': 'none', 'opacity': '1 !important',
@@ -529,13 +532,14 @@ const typeRules = {
   '[data-mk-uacts] > .mkReply::before': mask('reply-line'),
   // no Claude holder (held or read-only messages): Reply alone, in the same pill shape
   '.mkReply[data-solo]': {
-    'position': 'absolute', 'right': '8px', 'bottom': '-14px', 'z-index': '1', 'width': '27px', 'height': '28px', 'padding': '0', 'margin': '0',
+    'position': 'absolute', 'right': 'calc(var(--mk-ub-r, 0px) + 8px)', 'bottom': 'calc(var(--mk-ub-b, 0px) + 8px)', 'z-index': '1', 'width': '27px', 'height': '28px', 'padding': '0', 'margin': '0',
     'display': 'grid', 'place-items': 'center', 'appearance': 'none', 'border': '0', 'border-radius': '9px', 'cursor': 'pointer', 'color': '#9aa3b2',
     'background': 'color-mix(in srgb, #fff 4%, var(--app-primary-background, #21252c))',
     'box-shadow': 'inset 0 0 0 1px rgba(255, 255, 255, 0.08), 0 6px 16px -6px rgba(0, 0, 0, 0.55)',
     'opacity': '0', 'transition': 'opacity 120ms cubic-bezier(.4, 0, .2, 1), color 120ms cubic-bezier(.4, 0, .2, 1)',
   },
-  '.mkReply[data-solo]:is(:hover, :focus-visible), [class*="userMessageContainer_"]:hover > .mkReply[data-solo]': { 'opacity': '1' },
+  '[class*="userMessageContainer_"]:hover > .mkReply[data-solo]': { 'opacity': '1' },
+  '.mkReply[data-solo]:is(:hover, :focus-visible)': { 'opacity': '1' },
   '.mkReply[data-solo]:hover': { 'color': '#eceef2' },
   '.mkReply[data-solo]:focus-visible': { 'outline': 'none', 'box-shadow': '0 0 0 2px rgba(130, 169, 245, 0.5)' },
   '.mkReply[data-solo]::before': { 'content': "''", 'width': '15px', 'height': '15px', 'background': 'currentColor', ...mask('reply-line') },
@@ -548,6 +552,9 @@ const typeRules = {
   },
   '.mkQuoteBtn[hidden]': { 'display': 'none !important' },
   '.mkQuoteBtn > i': { 'flex': 'none', 'width': '14px', 'height': '14px', 'background': '#82a9f5', ...mask('chat-quote-line') },
+  // hover to add (files, images): same pill, file or image glyph
+  '.mkQuoteBtn[data-kind="file"] > i': mask('file-3-line'),
+  '.mkQuoteBtn[data-kind="image"] > i': mask('image-line'),
   '.mkQuoteBtn:hover': { 'background': 'color-mix(in srgb, #fff 6%, var(--mk-glass-float))', 'color': '#eceef2' },
   '.mkQuoteBtn:focus-visible': { 'outline': 'none', 'box-shadow': '0 0 0 2px rgba(130, 169, 245, 0.5)' },
   // quote attachment pills (message box and sent messages): Claude's file pill with a quote glyph and a blue tint.

@@ -97,16 +97,49 @@
   }
 
   // 3. Click a collapsed message to expand it (same as pressing "Show more").
+  // A prompt pinned at the top is the real message held by sticky, so it cannot grow there: unpin it, scroll the
+  // chat to the message's own spot (12px under the top edge), then expand it in place. Pinned is measured at click
+  // time (data-mk-stuck goes stale once the pin moves on to the next prompt): the message counts as pinned when
+  // switching the pin off moves it. Not pinned: the pin is switched back on, nothing else changes.
+  function unpinAndAnchor(box) {
+    const state = root.getAttribute('data-mk-reveal');
+    const msg = box.closest('[class*="message_"][class*="stickyHeader_"]');
+    const sc = box.closest('[class*="messagesContainer_"]');
+    if (!state || !msg || !sc) return false;
+    const shown = msg.getBoundingClientRect().top;
+    root.removeAttribute('data-mk-reveal');
+    const own = msg.getBoundingClientRect().top;
+    if (Math.abs(shown - own) < 2) { root.setAttribute('data-mk-reveal', state); return false; }
+    clearTimeout(revealTimer);
+    qa('[data-mk-stuck]').forEach((el) => el.removeAttribute('data-mk-stuck'));
+    const y = Math.max(0, Math.round(sc.scrollTop + own - sc.getBoundingClientRect().top - 12));
+    lastY.set(sc, y); // the jump is ours: keep the prompt-reveal scroll handler from re-pinning
+    drift = 0;
+    sc.scrollTop = y;
+    return true;
+  }
   document.addEventListener('click', (e) => {
     const t = e.target;
-    if (!(t instanceof Element) || t.closest('button, a, input, textarea')) return;
-    if (off('expand')) return;
+    if (!(t instanceof Element) || off('expand')) return;
     const box = t.closest('[class*="expandableContainer_"]');
-    if (!box || !q('[class*="collapsed_"]', box) || String(getSelection() || '').length) return;
+    if (!box) return;
+    const btn = t.closest('[class*="expandButton_"]');
+    if (btn) {
+      // Show more itself: only take over when the prompt is pinned; otherwise Claude's click runs as is
+      if (!unpinAndAnchor(box)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      // let this click finish, then press the button again (unpinned by then, so this branch lets it through)
+      setTimeout(() => btn.click(), 0);
+      return;
+    }
+    if (t.closest('button, a, input, textarea')) return;
+    if (!q('[class*="collapsed_"]', box) || String(getSelection() || '').length) return;
     const more = q('[class*="expandButton_"]', box);
     if (!more) return;
     e.preventDefault();
     e.stopPropagation();
+    unpinAndAnchor(box);
     more.click();
   }, true);
 
@@ -683,6 +716,7 @@
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'mkThumb';
+      b.setAttribute('data-mk-path', match.path);
       b.title = 'Open ' + r.name;
       b.setAttribute('aria-label', 'Open ' + r.name);
       const img = document.createElement('img');
@@ -1485,29 +1519,41 @@
     qa('[data-mk-bubble-row]').forEach((r) => { if (!rowsOn.has(r)) r.removeAttribute('data-mk-bubble-row'); });
     finals.forEach((m) => { if (!m.hasAttribute('data-mk-bubble')) m.setAttribute('data-mk-bubble', ''); });
     rowsOn.forEach((r) => { if (!r.hasAttribute('data-mk-bubble-row')) r.setAttribute('data-mk-bubble-row', ''); });
-    // --mk-act-gap: how far the row's content ends below the bubble. The copy / bookmark row adds it to its bottom
-    // margin, so at rest it sits 8px inside the bubble's bottom edge whatever Claude puts under the bubble.
-    // Measured from the other children only: the row's own height includes that margin, and reading it back grew
-    // the row a little every second (empty space under the last reply, chat creeping up).
     finals.forEach((m) => {
       const r = m.closest('[data-mk-bubble-row]');
       if (!r) return;
-      const base = m.getBoundingClientRect().bottom;
-      let end = base;
-      Array.from(r.children).forEach((k) => {
-        if (k.hasAttribute('data-message-actions')) return;
-        const b = k.getBoundingClientRect();
-        if (b.width || b.height) end = Math.max(end, b.bottom + (parseFloat(getComputedStyle(k).marginBottom) || 0));
-      });
-      const gap = Math.max(0, Math.round(end - base)) + 'px';
-      if (r.style.getPropertyValue('--mk-act-gap') !== gap) r.style.setProperty('--mk-act-gap', gap);
       // --mk-av-bottom: the bubble's bottom edge measured up from the row's padding edge, so the avatar's bottom
       // lines up with the bubble's whatever runs below it. The avatar is absolute: no feedback into layout.
+      const base = m.getBoundingClientRect().bottom;
       const rr = r.getBoundingClientRect();
       const av = Math.max(0, Math.round(rr.bottom - (parseFloat(getComputedStyle(r).borderBottomWidth) || 0) - base)) + 'px';
       if (r.style.getPropertyValue('--mk-av-bottom') !== av) r.style.setProperty('--mk-av-bottom', av);
     });
+    placeActs();
   }
+  // Claude's copy / bookmark pill, placed by script (CSS sticky could not measure Claude's row reliably):
+  // bottom 8px inside the bubble, but never lower than 12px above the message box, and never above the bubble's
+  // top + 8px. Moved with translateY only, so layout never changes and nothing feeds back.
+  function placeActs() {
+    const box = q('[class*="inputContainer_"][data-permission-mode]');
+    const cap = box ? box.getBoundingClientRect().top - 12 : Infinity;
+    qa('[data-mk-bubble-row] > [data-message-actions]').forEach((bar) => {
+      const md = q(':scope > [data-mk-bubble], :scope > * [data-mk-bubble]', bar.parentElement);
+      if (!md) return;
+      const b = md.getBoundingClientRect(), a = bar.getBoundingClientRect();
+      const was = parseFloat(bar.dataset.mkY || '0') || 0;
+      const lo = b.bottom - 8;
+      const target = Math.max(Math.min(lo, cap), Math.min(lo, b.top + 8 + a.height));
+      const y = Math.round(target - (a.bottom - was));
+      if (y !== was) { bar.dataset.mkY = String(y); bar.style.setProperty('--mk-act-y', y + 'px'); }
+    });
+  }
+  let actsRaf = 0;
+  document.addEventListener('scroll', (e) => {
+    if (!isChatScroller(e.target) || actsRaf) return;
+    actsRaf = requestAnimationFrame(() => { actsRaf = 0; placeActs(); });
+  }, true);
+  window.addEventListener('resize', () => placeActs());
 
   // 12. Model menu: Claude opens it as the slash-command popup, pinned to the message box's left edge at full width.
   //     Anchor it to the model pill instead: just above the pill, left-aligned, flipped to right-aligned near the edge.
@@ -1620,6 +1666,166 @@
     focusComposer();
   });
 
+  // Hover to add: rest the pointer on a file or an image in the chat for 1 s and the same "Add to chat" pill appears.
+  // Files (file chips, file links, @-mention chips, blocked markdown images) go in through Claude's own @-mention event,
+  // the one its "Insert @-mention" shortcut uses, so the message box gets a real file mention. Images shown in the chat
+  // are added as image attachments, like a pasted screenshot.
+  // path + optional line range: "a.js:42" and "a.js#L42-51" both become "a.js#L42-51"
+  function mentionPath(raw) {
+    const p = String(raw || '').trim().replace(/^file:\/\//, '').replace(/^\.\//, '');
+    let s = p;
+    try { s = decodeURI(p); } catch (e) {}
+    const m = /^(.*?)(?:[:#]L?(\d+)(?:-L?(\d+))?)?(?![\s\S])/.exec(s);
+    const base = m ? m[1] : s;
+    if (!base || /^[a-z][\w+.-]*:/i.test(base) || base.charAt(0) === '#') return ''; // local paths only
+    return base + (m && m[2] ? '#L' + m[2] + (m[3] ? '-' + m[3] : '') : '');
+  }
+  // Tool rows (Read, Edit, Write ...) show only the file's base name. The full path is in the row's React props:
+  // walk up the element's fiber and take the first file_path / notebook_path found a few levels into the props.
+  function toolPath(el) {
+    const key = Object.keys(el).find((k) => k.indexOf('__reactFiber') === 0);
+    let f = key && el[key], seen = 0;
+    const find = (o, d) => {
+      if (!o || typeof o !== 'object' || d > 3 || ++seen > 400) return '';
+      for (const k of ['file_path', 'notebook_path']) if (typeof o[k] === 'string' && o[k]) return o[k];
+      for (const k in o) {
+        if (k === '_owner' || k === 'children' && d > 1) continue;
+        const v = o[k];
+        if (v && typeof v === 'object') { const r = find(v, d + 1); if (r) return r; }
+      }
+      return '';
+    };
+    for (let i = 0; f && i < 30; i++, f = f.return) {
+      // stop at the first DOM node that holds more than one tool row: past it, props belong to other rows too
+      const n = f.stateNode;
+      if (n instanceof Element && n.querySelectorAll('[class*="toolNameText_"]').length > 1) return '';
+      seen = 0;
+      const p = find(f.memoizedProps, 0);
+      if (p) return p;
+    }
+    return '';
+  }
+  function hoverTarget(el) {
+    const sc = scroller();
+    if (!sc || !(el instanceof Element) || !sc.contains(el)) return null;
+    const thumb = el.closest('.mkThumb');
+    if (thumb) return thumb; // the kit's own image preview on Read rows
+    if (el.closest('[contenteditable], textarea, input, ' + OWN)) return null;
+    return el.closest('[class*="toolNameTextSecondary_"]') || el.closest('a[href]') || el.closest('[class*="mentionChip_"]')
+      || el.closest('span[title^="Image blocked: "]') || el.closest('code[data-mk-t="file"]') || el.closest('img');
+  }
+  function hoverItem(t) {
+    if (t.classList.contains('mkThumb')) { const im = q('img', t); return im ? { kind: 'image', img: im } : null; }
+    if (t.tagName === 'IMG') return t.width >= 32 && t.height >= 32 ? { kind: 'image', img: t } : null;
+    let p = '';
+    if (String(t.className).indexOf('toolNameTextSecondary_') >= 0) p = mentionPath(toolPath(t));
+    else if (t.tagName === 'A') p = mentionPath(t.getAttribute('href'));
+    else if (t.tagName === 'CODE') p = mentionPath(t.textContent);
+    else if (/^Image blocked: /.test(t.title)) p = mentionPath(t.title.slice(15));
+    else p = mentionPath((t.getAttribute('title') || '').replace(/^Open /, '') || (t.textContent || '').replace(/^@/, ''));
+    return p ? { kind: 'file', path: p } : null;
+  }
+  function addMention(p) {
+    const c = window.__ccConn, ev = c && c.atMentionEvents;
+    if (!ev || typeof ev.emit !== 'function') return false;
+    ev.emit('@' + p);
+    return true;
+  }
+  // Claude takes png / jpeg / gif / webp only: anything else (svg previews) is redrawn as png
+  function imageUrl(img) {
+    const src = img.currentSrc || img.src || '';
+    if (/^data:image\/(png|jpe?g|gif|webp)[;,]/.test(src)) return src;
+    try {
+      const c = document.createElement('canvas');
+      c.width = img.naturalWidth; c.height = img.naturalHeight;
+      c.getContext('2d').drawImage(img, 0, 0);
+      return c.toDataURL('image/png');
+    } catch (e) { return ''; } // cross-origin image: canvas is tainted
+  }
+  async function addImage(img) {
+    const s = window.__mkS, url = imageUrl(img);
+    if (!url || !s || !s.composerAttachments) return false;
+    const comma = url.indexOf(','), head = url.slice(5, comma), body = url.slice(comma + 1);
+    const type = head.split(';')[0] || 'image/png';
+    let bin;
+    try { bin = atob(body); } catch (e) { return false; } // imageUrl only returns base64 png / jpeg / gif / webp
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const ext = (type.split('/')[1] || 'png').replace('jpeg', 'jpg');
+    const alt = norm(img.getAttribute('alt') || '').replace(/\.\w+(?![\s\S])/, '').replace(/[\\/:*?"<>|]/g, '').slice(0, 40);
+    const file = new File([bytes], (alt || 'Image from chat') + '.' + ext, { type });
+    const list = s.composerAttachments.value || [];
+    if (list.some((a) => a && a.file && a.file.name === file.name && a.file.size === file.size)) return true;
+    try { s.composerAttachments.value = list.concat([{ file, dataUrl: url }]); } catch (e) { return false; }
+    return true;
+  }
+
+  const hbtn = document.createElement('button');
+  hbtn.type = 'button';
+  hbtn.className = 'mkQuoteBtn';
+  hbtn.hidden = true;
+  hbtn.setAttribute('data-mk-hover', '');
+  hbtn.innerHTML = '<i aria-hidden="true"></i><span>Add to chat</span>';
+  document.body.appendChild(hbtn);
+  let hEl = null, hItem = null, hTimer = 0, hHide = 0;
+  function hoverHide() {
+    clearTimeout(hTimer); clearTimeout(hHide);
+    hTimer = hHide = 0;
+    hbtn.hidden = true;
+    hEl = hItem = null;
+  }
+  // files: centred above the element (below when that leaves the chat). Images: inside the top-right corner.
+  function showHover() {
+    hTimer = 0;
+    const sc = scroller();
+    if (!sc || !hEl || !hEl.isConnected || off('quote') || !qbtn.hidden || dragging || String(getSelection() || '').length) return;
+    hItem = hoverItem(hEl);
+    if (!hItem) return;
+    const img = hItem.kind === 'image';
+    hbtn.setAttribute('data-kind', hItem.kind);
+    hbtn.setAttribute('aria-label', img ? 'Add image to chat' : 'Add ' + hItem.path + ' to chat');
+    hbtn.title = img ? '' : '@' + hItem.path;
+    const sr = sc.getBoundingClientRect(), r = hEl.getBoundingClientRect();
+    const input = q('[class*="inputContainer_"]');
+    const floor = Math.min(sr.bottom, input ? input.getBoundingClientRect().top : sr.bottom) - 4;
+    hbtn.hidden = false;
+    const w = hbtn.offsetWidth, h = hbtn.offsetHeight;
+    let top, left;
+    if (img) {
+      top = Math.max(r.top, sr.top + 4) + 8;
+      left = Math.min(r.right, sr.right) - w - 8;
+    } else {
+      top = r.top - h - 6;
+      if (top < sr.top + 4) top = r.bottom + 6;
+      left = (r.left + r.right) / 2 - w / 2;
+    }
+    if (top < sr.top + 4 || top + h > floor) { hbtn.hidden = true; return; }
+    hbtn.style.left = Math.round(Math.max(sr.left + 6, Math.min(left, sr.right - w - 6))) + 'px';
+    hbtn.style.top = Math.round(top) + 'px';
+  }
+  document.addEventListener('mouseover', (e) => {
+    const t = e.target;
+    if (t instanceof Element && t.closest('[data-mk-hover]')) { clearTimeout(hHide); hHide = 0; return; }
+    const el = hoverTarget(t);
+    if (el && el === hEl) { clearTimeout(hHide); hHide = 0; return; }
+    if (!hbtn.hidden && !el) { if (!hHide) hHide = setTimeout(hoverHide, 250); return; } // grace to reach the pill
+    hoverHide();
+    if (!el || off('quote')) return;
+    hEl = el;
+    hTimer = setTimeout(showHover, 1000);
+  }, true);
+  document.documentElement.addEventListener('mouseleave', hoverHide);
+  document.addEventListener('mousedown', (e) => { if (!(e.target instanceof Element && e.target.closest('[data-mk-hover]'))) hoverHide(); }, true);
+  document.addEventListener('scroll', () => { if (hEl) hoverHide(); }, true);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hoverHide(); }, true);
+  hbtn.addEventListener('click', async () => {
+    const item = hItem;
+    hoverHide();
+    if (!item) return;
+    if (item.kind === 'file') addMention(item.path);
+    else if (await addImage(item.img)) focusComposer();
+  });
+
   // Reply buttons: first in Claude's copy / bookmark row on final reply bubbles; on your bubble's bottom-right corner
   // (on the bubble's container: the bubble itself clips overflow). Icon only, no text, so message textContent
   // (chat map, held-message matching) is unchanged.
@@ -1660,6 +1866,13 @@
       const more = q(':scope > * > button[title="Message actions"]', box);
       const host = more ? more.parentElement : box;
       if (more && !host.hasAttribute('data-mk-uacts')) host.setAttribute('data-mk-uacts', '');
+      // --mk-ub-r / --mk-ub-b: the bubble's right / bottom edge measured in from the container's padding box, so the
+      // pill (absolute on the container) sits 8px inside the bubble's corner. Reads the bubble only: no feedback.
+      const br = box.getBoundingClientRect(), ur = um.getBoundingClientRect(), cs = getComputedStyle(box);
+      const ubr = Math.round(br.right - (parseFloat(cs.borderRightWidth) || 0) - ur.right) + 'px';
+      const ubb = Math.round(br.bottom - (parseFloat(cs.borderBottomWidth) || 0) - ur.bottom) + 'px';
+      if (box.style.getPropertyValue('--mk-ub-r') !== ubr) box.style.setProperty('--mk-ub-r', ubr);
+      if (box.style.getPropertyValue('--mk-ub-b') !== ubb) box.style.setProperty('--mk-ub-b', ubb);
       qa(':scope > .mkReply', box).forEach((b) => { if (host !== box) b.remove(); });
       if (q(':scope > .mkReply', host)) return;
       const b = replyButton(() => userText(um), 'You');

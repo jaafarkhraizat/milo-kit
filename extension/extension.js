@@ -26,20 +26,46 @@ function contextPaths(context) {
 }
 
 // The app icon cards: Milo art from media, and a small PNG of the editor's own icon (webviews can't show .icns).
+// The PNG goes to the page inline as a data: URI. A webview URI into globalStorage loaded as a broken image.
 function appIconPreviews(context, web, media) {
   const { appPath } = contextPaths(context);
   const out = { milo: web.asWebviewUri(vscode.Uri.joinPath(media, 'app-icon-milo.svg')).toString(), stock: '' };
   if (process.platform !== 'darwin') return out;
   const dir = context.globalStorageUri.fsPath;
-  const png = path.join(dir, 'stock-app-icon.png');
   try {
     const icns = path.join(appPath, 'Contents', 'Resources', 'Code.icns');
-    if (!fs.existsSync(png) || fs.statSync(png).mtimeMs < fs.statSync(icns).mtimeMs) {
+    // The icns mtime in the name regenerates the PNG after a VS Code update.
+    const name = `stock-app-icon-${Math.round(fs.statSync(icns).mtimeMs)}.png`;
+    const png = path.join(dir, name);
+    if (!fs.existsSync(png)) {
       fs.mkdirSync(dir, { recursive: true });
+      for (const f of fs.readdirSync(dir)) if (/^stock-app-icon.*\.png$/.test(f)) fs.rmSync(path.join(dir, f), { force: true });
       require('child_process').execFileSync('sips', ['-s', 'format', 'png', '-Z', '128', icns, '--out', png], { stdio: 'ignore' });
     }
-    out.stock = web.asWebviewUri(vscode.Uri.file(png)).toString() + '?v=' + Math.round(fs.statSync(png).mtimeMs);
+    out.stock = `data:image/png;base64,${fs.readFileSync(png).toString('base64')}`;
   } catch { /* the card shows its name only */ }
+  return out;
+}
+
+// Preset images for Claude's avatar: every image in ~/.milo-kit/avatars (sorted by name). The label is an SVG's
+// <title>, else the file name without a leading number. The kit ships none; drop files in to add your own.
+const AVATAR_TYPES = { svg: 'svg+xml', png: 'png', jpg: 'jpeg', jpeg: 'jpeg', webp: 'webp', gif: 'gif' };
+function avatarPresets() {
+  const dir = path.join(os.homedir(), '.milo-kit', 'avatars');
+  let names = [];
+  try { names = fs.readdirSync(dir).sort(); } catch { return []; }
+  const out = [];
+  for (const f of names) {
+    const ext = path.extname(f).slice(1).toLowerCase();
+    if (!AVATAR_TYPES[ext]) continue;
+    try {
+      const buf = fs.readFileSync(path.join(dir, f));
+      if (buf.length > 2 * 1024 * 1024) continue;
+      const title = ext === 'svg' && /<title>([^<]{1,60})<\/title>/.exec(buf.toString('utf8'));
+      const label = title ? title[1] : path.basename(f, '.' + ext).replace(/^\d+[-_ ]*/, '').replace(/[-_]+/g, ' ');
+      out.push({ id: f, label, data: `data:image/${AVATAR_TYPES[ext]};base64,${buf.toString('base64')}` });
+    } catch { /* skip unreadable files */ }
+  }
   return out;
 }
 
@@ -172,6 +198,7 @@ function open(context) {
           mac: process.platform === 'darwin',
           appIcon: appIconPreviews(context, web, media),
           scrollInstalled: fs.existsSync(path.join(A.SCROLL_DIR, 'overlay.js')),
+          avatarPresets: avatarPresets(),
           version: context.extension.packageJSON.version,
         });
       } else if (msg.type === 'save') {
@@ -199,6 +226,18 @@ function open(context) {
           if (pick !== 'Close without saving') return;
         }
         panel.dispose();
+      } else if (msg.type === 'pickImage') {
+        // The page crops and shrinks it: here we only read the file the person picks.
+        const picked = await vscode.window.showOpenDialog({
+          canSelectMany: false, openLabel: 'Use as avatar', title: msg.who === 'agent' ? "Claude's avatar" : 'Your avatar',
+          filters: { Images: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'] },
+        });
+        if (!picked || !picked.length) return;
+        const file = picked[0].fsPath;
+        if (fs.statSync(file).size > 20 * 1024 * 1024) throw new Error('That image is over 20 MB. Pick a smaller one.');
+        const ext = path.extname(file).slice(1).toLowerCase();
+        const mime = { jpg: 'jpeg', svg: 'svg+xml' }[ext] || ext;
+        web.postMessage({ type: 'image', who: msg.who, data: `data:image/${mime};base64,${fs.readFileSync(file).toString('base64')}` });
       } else if (msg.type === 'testScroll') {
         const sh = path.join(A.SCROLL_DIR, 'scroll.sh');
         if (!fs.existsSync(sh)) throw new Error("Milo's Scroll isn't installed. Turn it on and save first.");

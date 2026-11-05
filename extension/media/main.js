@@ -17,7 +17,7 @@
   ];
   const SPOTS = ['top-left', 'top-center', 'top-right', 'bottom-left', 'bottom-center', 'bottom-right'];
   // Changes that only show after Custom UI Style reloads VS Code.
-  const RELOAD = ['colors', 'corners', 'features', 'initials', 'status.yellow', 'status.red', 'status.usageOnly', 'fonts.ui', 'fonts.code'];
+  const RELOAD = ['colors', 'corners', 'features', 'initials', 'avatar', 'status.yellow', 'status.red', 'status.usageOnly', 'fonts.ui', 'fonts.code'];
 
   let saved, draft, D;
 
@@ -157,6 +157,36 @@
       box.appendChild(b);
     }
   }
+  // Claude's avatar presets (images in ~/.milo-kit/avatars), then an upload tile.
+  function buildAvatarGrid() {
+    const list = D.avatarPresets || [];
+    const box = $('#agGrid');
+    box.hidden = !list.length;
+    box.innerHTML = '';
+    for (const p of list) {
+      const b = document.createElement('button');
+      b.dataset.id = p.id;
+      b.title = p.label;
+      b.setAttribute('aria-label', p.label);
+      b.style.backgroundImage = `url("${p.data}")`;
+      b.onclick = () => shrink(p.data).then((url) => {
+        Object.assign(draft.avatar, { agent: 'image', agentImage: url, agentPreset: p.id });
+        render();
+      }, showError);
+      box.appendChild(b);
+    }
+    const up = document.createElement('button');
+    up.className = 'up';
+    up.title = 'Upload your own';
+    up.setAttribute('aria-label', 'Upload your own');
+    up.textContent = '+';
+    up.onclick = () => vscode.postMessage({ type: 'pickImage', who: 'agent' });
+    box.appendChild(up);
+  }
+  function showError(err) {
+    $('#changes').classList.add('err');
+    $('#changes').textContent = err.message;
+  }
   function buildSegs() {
     for (const s of $$('.seg[data-opts]')) {
       s.innerHTML = '';
@@ -193,11 +223,24 @@
       };
     });
     $$('select[data-bind]').forEach((s) => { s.onchange = () => { set(draft, s.dataset.bind, s.value); render(); }; });
-    const ini = $('input.initials');
-    ini.oninput = () => { draft.initials = ini.value.replace(/[^\p{L}\p{N}]/gu, '').toUpperCase().slice(0, 3); render(); };
+    const clean = (v) => v.replace(/[^\p{L}\p{N}]/gu, '').toUpperCase().slice(0, 3);
+    $('#meText').oninput = () => { draft.initials = clean($('#meText').value); render(); };
+    $('#agText').oninput = () => { draft.avatar.agentText = clean($('#agText').value); render(); };
+    // The extension opens the file dialog and sends the file back; the page crops it here.
+    $$('.pick').forEach((b) => { b.onclick = () => vscode.postMessage({ type: 'pickImage', who: b.dataset.who }); });
+    // Choosing "Image" with no image yet opens the picker straight away.
+    $$('.seg[data-bind^="avatar."] button').forEach((b) => {
+      const choose = b.onclick;
+      b.onclick = () => {
+        const who = b.parentElement.dataset.bind === 'avatar.me' ? 'me' : 'agent';
+        if (b.dataset.v === 'image' && !draft.avatar[who + 'Image']) vscode.postMessage({ type: 'pickImage', who });
+        else choose();
+      };
+    });
     $('#save').onclick = save;
     $('#discard').onclick = () => { draft = clone(saved); render(); };
-    $('#reset').onclick = () => { const ini2 = draft.initials; draft = clone(D.defaults); draft.initials = ini2; render(); };
+    // your initials and both avatars are personal: reset keeps them
+    $('#reset').onclick = () => { const { initials, avatar } = draft; draft = clone(D.defaults); Object.assign(draft, { initials, avatar }); render(); };
     $('#test').onclick = () => vscode.postMessage({ type: 'testScroll', kind: 'complete' });
     $('#close').onclick = close;
     document.addEventListener('keydown', (e) => {
@@ -214,9 +257,29 @@
   function save() {
     if (!changes().length) return;
     if (!draft.initials) draft.initials = saved.initials;
+    if (!draft.avatar.agentText) draft.avatar.agentText = saved.avatar.agentText;
     $('#save').disabled = true;
     $('#save').textContent = 'Saving...';
     vscode.postMessage({ type: 'save', config: draft });
+  }
+
+  // Avatar image: centre square crop, 128 px (sharp at 2x for the 28 px account avatar), webp, png fallback.
+  function shrink(src) {
+    return new Promise((ok, bad) => {
+      const im = new Image();
+      im.onload = () => {
+        const S = 128;
+        const c = document.createElement('canvas');
+        c.width = c.height = S;
+        const w = im.naturalWidth || S, h = im.naturalHeight || S, side = Math.min(w, h);
+        c.getContext('2d').drawImage(im, (w - side) / 2, (h - side) / 2, side, side, 0, 0, S, S);
+        let url = c.toDataURL('image/webp', 0.9);
+        if (!url.startsWith('data:image/webp')) url = c.toDataURL('image/png');
+        ok(url);
+      };
+      im.onerror = () => bad(new Error("That file couldn't be read as an image. Try a PNG or JPEG."));
+      im.src = src;
+    });
   }
 
   // ── render everything from the draft ──
@@ -258,11 +321,37 @@
     root.setProperty('--ic-bottom', icBottom);
     $$('#spots button').forEach((b) => b.classList.toggle('on', b.dataset.v === draft.scroll.position));
     $$('.dep').forEach((d) => d.classList.toggle('off', !get(draft, d.dataset.dep)));
-    const ini = $('input.initials');
-    if (document.activeElement !== ini) ini.value = draft.initials;
+    const av = draft.avatar;
+    if (document.activeElement !== $('#meText')) $('#meText').value = draft.initials;
+    if (document.activeElement !== $('#agText')) $('#agText').value = av.agentText;
+    $('#meText').hidden = av.me !== 'text';
+    $('#mePick').hidden = av.me !== 'image';
+    $('#agText').hidden = av.agent !== 'text';
+    // with presets, the grid's own upload tile replaces the Choose button
+    const grid = (D.avatarPresets || []).length > 0;
+    $('#agPick').hidden = av.agent !== 'image' || grid;
+    for (const [who, el] of [['me', '#mePick'], ['agent', '#agPick']]) {
+      const src = av[who + 'Image'];
+      $('.thumb', $(el)).style.backgroundImage = src ? `url("${src}")` : '';
+      $('.pl', $(el)).textContent = src ? 'Change' : 'Choose';
+    }
+    const agImage = av.agent === 'image';
+    $$('#agGrid button[data-id]').forEach((b) => b.classList.toggle('on', agImage && b.dataset.id === av.agentPreset));
+    const up = $('#agGrid .up');
+    const uploaded = agImage && !av.agentPreset && av.agentImage;
+    up.classList.toggle('on', !!uploaded);
+    up.style.backgroundImage = uploaded ? `url("${av.agentImage}")` : '';
 
     // preview
-    $('#pvInitials').textContent = draft.initials || saved.initials;
+    const pvMe = $('#pvInitials'), pvAg = $('.av.cl');
+    const meImg = av.me === 'image' && av.meImage, agImg = av.agent === 'image' && av.agentImage;
+    pvMe.textContent = meImg ? '' : draft.initials || saved.initials;
+    pvMe.classList.toggle('img', !!meImg);
+    pvMe.style.backgroundImage = meImg ? `url("${meImg}")` : '';
+    pvAg.textContent = av.agent === 'text' ? av.agentText : '';
+    pvAg.classList.toggle('txt', av.agent === 'text');
+    pvAg.classList.toggle('img', !!agImg);
+    pvAg.style.backgroundImage = agImg ? `url("${agImg}")` : '';
     $('#pvInitials').classList.toggle('hide', !draft.features.avatars);
     $('#pvMap').classList.toggle('hide', !draft.features.map);
     $('#pvScroll').classList.toggle('off', !draft.scroll.enabled);
@@ -296,6 +385,7 @@
       buildCards('#fileIcons', m.themes.file, 'icons.file');
       buildAppIcons();
       buildSegs();
+      buildAvatarGrid();
       wire();
       if (!m.mac) { $('#scrollNote').hidden = false; $('#scrollBody').hidden = true; $('#appIconNote').hidden = false; $('#appIcons').hidden = true; }
       const tab = (vscode.getState() || {}).tab;
@@ -308,6 +398,13 @@
       draft = clone(m.config);
       render();
       $('#changes').innerHTML = '<b>Saved.</b>';
+    } else if (m.type === 'image') {
+      shrink(m.data).then((url) => {
+        draft.avatar[m.who + 'Image'] = url;
+        draft.avatar[m.who] = 'image';
+        if (m.who === 'agent') draft.avatar.agentPreset = '';
+        render();
+      }, showError);
     } else if (m.type === 'error') {
       render();
       $('#changes').classList.add('err');

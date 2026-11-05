@@ -93,12 +93,16 @@ Your own settings, your avatar initials and everything you chose in Milo Kit set
 
 <br>
 
-- Blue accent, colored headings, links and inline code, color chips for hex values
-- Your initials beside your messages, Claude's avatar beside replies
+- Blue accent, colored headings and links, calmer reading layout (lines capped at 72 characters)
+- Claude's final reply in each turn sits in a soft bubble, with copy and bookmark pinned to its corner while you scroll
+- Inline code styled by type: skills, commands, keys, files, times, dates, durations, numbers, statuses, commits, agents and MCP tools each get their own chip. Hex colors show a swatch
+- Callouts: a quote that starts with a bold title (**Next**, **Warning**, **Decision**...) becomes a tinted card. Number columns in tables line up
+- Avatars for you and Claude: initials or text, or your own image (set in Milo Kit settings > Chat features)
 - Cleaner sessions panel: account and usage in one card, a clear **New session** button
 - Milo on the empty chat screen
 - Tab icons that show state: idle, working, done, needs you
 - Small previews of images Claude reads, right under the "Read file.png" line
+- Optional Milo app icon for VS Code (macOS), tinted with your accent. It comes back after VS Code updates
 
 </details>
 
@@ -125,6 +129,22 @@ Your own settings, your avatar initials and everything you chose in Milo Kit set
 - **Queued messages:** messages you send while Claude works show in the chat, greyed, with Edit and Delete until Claude takes them
 - **Agents chip** in the message box. Click it for task and agent details
 - **Rename:** right-click a Claude tab to rename the session
+- **Quote:** select any text in the chat and click **Add to chat**. It goes in as a quote attachment, labeled with who said it
+- **Reply:** a Reply button on your messages and Claude's quotes that message into the box
+- **Hover to add:** hover a file, link or image in the chat for a second, then click the pill to add it to your message
+- **Model menu** opens right above the model button instead of across the whole box
+
+</details>
+
+<details open>
+<summary><b>Usage dashboard</b></summary>
+
+<br>
+
+- Open it from the **Account & usage** card in the sessions panel. It opens as a popup over the chat; expand it to fill the panel
+- Shows your Claude Code tokens by project and kind of work, what they would cost at API prices, and how much went to rework (fixes and revisions after the first try)
+- Points out friction: the files re-edited most, the tasks that needed the most retries, and what stands out
+- Built from your local history only. Nothing leaves your machine
 
 </details>
 
@@ -144,8 +164,8 @@ Open the **"..."** menu at the top right of any editor and choose **Milo Kit set
 | Section | What you can change |
 |---|---|
 | Look | Presets (Milo, Ember, Moss, Ink), accent, backgrounds, text colors, corners |
-| Icons and fonts | Interface icons, file icons (any pack you have installed), interface and code fonts, code size |
-| Chat features | Each extra on or off: avatars and initials, Milo, tab icons, image previews, token count, MCP avatars, tasks, chat map, pinned prompt, expand, queued messages, rename |
+| Icons and fonts | App icon (Milo or stock, macOS), interface icons, file icons (any pack you have installed), interface and code fonts, code size |
+| Chat features | Your avatar and Claude's (text or your own image; images you put in `~/.milo-kit/avatars/` show as presets), and each extra on or off: Milo, tab icons, image previews, token count, MCP avatars, tasks, chat map, pinned prompt, expand, queued messages, rename |
 | Milo's Scroll | On or off, which events show it, position, how long it stays, a soft chime, a test card |
 | Status bar | Usage only, which limit, progress bar, when it turns yellow and red, the usage summary |
 

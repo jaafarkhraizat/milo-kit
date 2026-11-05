@@ -53,7 +53,9 @@
       <h2>Chat features</h2>
       <p class="sub">What the kit adds to Claude Code. Turn off anything you don't use.</p>
       <h3>Look</h3>
-      <div class="row"><div class="l"><b>Avatars</b><small>Your initials beside your messages</small></div><div class="pair"><input class="initials" data-bind="initials" maxlength="3" aria-label="Initials"><button class="tg" data-bind="features.avatars" aria-label="Avatars"></button></div></div>
+      <div class="row"><div class="l"><b>Your avatar</b><small>Beside your messages and on your account card</small></div><div class="pair"><div class="seg" data-bind="avatar.me" data-opts="text:Initials,image:Image"></div><input class="initials" id="meText" maxlength="3" aria-label="Your initials"><button class="pick" id="mePick" data-who="me"><span class="thumb"></span><span class="pl">Choose</span></button><button class="tg" data-bind="features.avatars" aria-label="Show your avatar"></button></div></div>
+      <div class="row"><div class="l"><b>Claude's avatar</b><small>Beside each reply</small></div><div class="pair"><div class="seg" data-bind="avatar.agent" data-opts="claude:Claude,text:Text,image:Image"></div><input class="initials" id="agText" maxlength="3" aria-label="Claude's avatar text"><button class="pick" id="agPick" data-who="agent"><span class="thumb"></span><span class="pl">Choose</span></button></div></div>
+      <div class="avgrid" id="agGrid" hidden></div>
       <div class="row"><div class="l"><b>Milo on empty chat</b><small>Shown before your first message</small></div><button class="tg" data-bind="features.milo"></button></div>
       <div class="row"><div class="l"><b>Tab state icons</b><small>Idle, working, done, needs you</small></div><button class="tg" data-bind="features.tabIcons"></button></div>
       <div class="row"><div class="l"><b>Image previews</b><small>Thumbnails under "Read file.png"</small></div><button class="tg" data-bind="features.thumbs"></button></div>
