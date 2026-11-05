@@ -9,11 +9,15 @@ a desktop card that tells you when Claude is done or needs you.
 
 [Install](#install) · [Update](#update) · [What you get](#what-you-get) · [Settings](#settings) · [Options](#options) · [Uninstall](#uninstall) · [Troubleshooting](#troubleshooting)
 
+<br>
+
+<img src="assets/readme/hero.png" alt="Claude Code in VS Code with Milo Kit: a reply bubble with typed chips, the chat header with usage and token count, Milo on the empty chat screen and the sessions panel" width="100%">
+
 </div>
 
 ---
 
-## Install
+## <img src="assets/readme/download-2-line.svg" width="24" height="24" align="top"> Install
 
 **1. Run this in Terminal**
 
@@ -54,7 +58,7 @@ Open the Command Palette (`Cmd+Shift+P`) and run **Custom UI Style: Reload**. VS
 
 ---
 
-## Update
+## <img src="assets/readme/refresh-line.svg" width="24" height="24" align="top"> Update
 
 > [!IMPORTANT]
 > **Updates don't install themselves.** The installer copies the kit once and never checks GitHub again. When a new version comes out, your VS Code keeps the version you installed until you update it yourself.
@@ -78,88 +82,90 @@ Your own settings, your avatar initials and everything you chose in Milo Kit set
 
 ---
 
-## What you get
+## <img src="assets/readme/sparkling-2-line.svg" width="24" height="24" align="top"> What you get
 
-### Theme
+### <img src="assets/readme/palette-line.svg" width="20" height="20" align="top"> Theme
 
-- Theme Mix colors with darker side bars, pill tabs and rounded floating panels
-- Geist and Geist Mono type, RemixIcon product icons, Symbols file icons
-- Status bar shows only your Claude usage: yellow at 80%, red at 90%
+- <img src="assets/readme/palette-line.svg" width="16" height="16" align="top"> **Colors:** Theme Mix with darker side bars, pill tabs and rounded floating panels
+- <img src="assets/readme/font-size.svg" width="16" height="16" align="top"> **Type and icons:** Geist and Geist Mono, RemixIcon product icons, Symbols file icons
+- <img src="assets/readme/bar-chart-horizontal-line.svg" width="16" height="16" align="top"> **Status bar:** only your Claude usage: yellow at 80%, red at 90%
 
-### Claude Code
+### <img src="assets/readme/chat-smile-2-line.svg" width="20" height="20" align="top"> Claude Code
 
 <details open>
-<summary><b>Look</b></summary>
+<summary><img src="assets/readme/brush-line.svg" width="16" height="16" align="top"> <b>Look</b></summary>
 
 <br>
 
-- Blue accent, colored headings and links, calmer reading layout (lines capped at 72 characters)
-- Claude's final reply in each turn sits in a soft bubble, with copy and bookmark pinned to its corner while you scroll
-- Inline code styled by type: skills, commands, keys, files, times, dates, durations, numbers, statuses, commits, agents and MCP tools each get their own chip. Hex colors show a swatch
-- Callouts: a quote that starts with a bold title (**Next**, **Warning**, **Decision**...) becomes a tinted card. Number columns in tables line up
-- Avatars for you and Claude: initials or text, or your own image (set in Milo Kit settings > Chat features)
-- Cleaner sessions panel: account and usage in one card, a clear **New session** button
-- Milo on the empty chat screen
-- Tab icons that show state: idle, working, done, needs you
-- Small previews of images Claude reads, right under the "Read file.png" line
-- Optional Milo app icon for VS Code (macOS), tinted with your accent. It comes back after VS Code updates
+- <img src="assets/readme/text-wrap.svg" width="16" height="16" align="top"> **Reading layout:** blue accent, colored headings and links, lines capped at 72 characters
+- <img src="assets/readme/message-3-line.svg" width="16" height="16" align="top"> **Reply bubble:** Claude's final reply in each turn sits in a soft bubble, with copy and bookmark pinned to its corner while you scroll
+- <img src="assets/readme/code-s-slash-line.svg" width="16" height="16" align="top"> **Typed chips:** skills, commands, keys, files, times, dates, durations, numbers, statuses, commits, agents and MCP tools in inline code each get their own style. Hex colors show a swatch
+- <img src="assets/readme/double-quotes-l.svg" width="16" height="16" align="top"> **Callouts:** a quote that starts with a bold title (**Next**, **Warning**, **Decision**...) becomes a tinted card. Number columns in tables line up
+- <img src="assets/readme/user-smile-line.svg" width="16" height="16" align="top"> **Avatars:** for you and Claude: initials, text or your own image (set in Milo Kit settings > Chat features)
+- <img src="assets/readme/layout-top-line.svg" width="16" height="16" align="top"> **Sessions panel:** account and usage in one card, a clear **New session** button
+- <img src="assets/readme/robot-2-line.svg" width="16" height="16" align="top"> **Milo:** on the empty chat screen
+- <img src="assets/readme/apps-line.svg" width="16" height="16" align="top"> **Tab icons:** show state: idle, working, done, needs you
+- <img src="assets/readme/image-line.svg" width="16" height="16" align="top"> **Image previews:** thumbnails of images Claude reads, right under the "Read file.png" line
+- <img src="assets/readme/window-line.svg" width="16" height="16" align="top"> **App icon:** optional Milo icon for VS Code (macOS), tinted with your accent. It comes back after VS Code updates
 
 </details>
 
 <details open>
-<summary><b>Chat header</b></summary>
+<summary><img src="assets/readme/layout-top-line.svg" width="16" height="16" align="top"> <b>Chat header</b></summary>
 
 <br>
 
-- Your usage, with only Bookmarks and the chat map on the right
-- Tokens spent in the chat, a small number left of Bookmarks. Hover for input, output and cache figures
-- MCP servers used in the chat, as overlapping logo avatars. Hover one for its calls and tools. Logos ship with the kit, so nothing is fetched
-- A tasks badge. Click it for task and agent details
+- <img src="assets/readme/bar-chart-box-line.svg" width="16" height="16" align="top"> **Usage:** your plan usage, with only Bookmarks and the chat map on the right
+- <img src="assets/readme/coins-line.svg" width="16" height="16" align="top"> **Token count:** tokens spent in this chat, a small number left of Bookmarks. Hover for input, output and cache figures
+- <img src="assets/readme/plug-line.svg" width="16" height="16" align="top"> **MCP avatars:** servers used in the chat, as overlapping logo avatars. Hover one for its calls and tools. Logos ship with the kit, so nothing is fetched
+- <img src="assets/readme/list-check-3.svg" width="16" height="16" align="top"> **Tasks:** a badge. Click it for task and agent details
 
 </details>
 
 <details open>
-<summary><b>Working in the chat</b></summary>
+<summary><img src="assets/readme/chat-3-line.svg" width="16" height="16" align="top"> <b>Working in the chat</b></summary>
 
 <br>
 
-- **Chat map:** a minimap of the whole conversation, opened from the header. Click or drag to move, hover a blue bar to preview a prompt
-- **Pinned prompt:** your last prompt pins to the top only while you scroll up
-- **Expand:** click a long message to open it in full
-- **Queued messages:** messages you send while Claude works show in the chat, greyed, with Edit and Delete until Claude takes them
-- **Agents chip** in the message box. Click it for task and agent details
-- **Rename:** right-click a Claude tab to rename the session
-- **Quote:** select any text in the chat and click **Add to chat**. It goes in as a quote attachment, labeled with who said it
-- **Reply:** a Reply button on your messages and Claude's quotes that message into the box
-- **Hover to add:** hover a file, link or image in the chat for a second, then click the pill to add it to your message
-- **Model menu** opens right above the model button instead of across the whole box
+- <img src="assets/readme/road-map-line.svg" width="16" height="16" align="top"> **Chat map:** a minimap of the whole conversation, opened from the header. Click or drag to move, hover a blue bar to preview a prompt
+- <img src="assets/readme/pushpin-line.svg" width="16" height="16" align="top"> **Pinned prompt:** your last prompt pins to the top only while you scroll up
+- <img src="assets/readme/expand-diagonal-line.svg" width="16" height="16" align="top"> **Expand:** click a long message to open it in full
+- <img src="assets/readme/time-line.svg" width="16" height="16" align="top"> **Queued messages:** messages you send while Claude works show in the chat, greyed, with Edit and Delete until Claude takes them
+- <img src="assets/readme/user-smile-line.svg" width="16" height="16" align="top"> **Agents chip:** in the message box. Click it for task and agent details
+- <img src="assets/readme/edit-line.svg" width="16" height="16" align="top"> **Rename:** right-click a Claude tab to rename the session
+- <img src="assets/readme/chat-quote-line.svg" width="16" height="16" align="top"> **Quote:** select any text in the chat and click **Add to chat**. It goes in as a quote attachment, labeled with who said it
+- <img src="assets/readme/reply-line.svg" width="16" height="16" align="top"> **Reply:** a Reply button on your messages and Claude's quotes that message into the box
+- <img src="assets/readme/image-line.svg" width="16" height="16" align="top"> **Hover to add:** hover a file, link or image in the chat for a second, then click the pill to add it to your message
+- <img src="assets/readme/arrow-up-box-line.svg" width="16" height="16" align="top"> **Model menu:** opens right above the model button instead of across the whole box
 
 </details>
 
 <details open>
-<summary><b>Usage dashboard</b></summary>
+<summary><img src="assets/readme/bar-chart-box-line.svg" width="16" height="16" align="top"> <b>Usage dashboard</b></summary>
 
 <br>
 
-- Open it from the **Account & usage** card in the sessions panel. It opens as a popup over the chat; expand it to fill the panel
-- Shows your Claude Code tokens by project and kind of work, what they would cost at API prices, and how much went to rework (fixes and revisions after the first try)
-- Points out friction: the files re-edited most, the tasks that needed the most retries, and what stands out
-- Built from your local history only. Nothing leaves your machine
+- <img src="assets/readme/cursor-line.svg" width="16" height="16" align="top"> **Open it:** from the **Account & usage** card in the sessions panel. It opens as a popup over the chat; expand it to fill the panel
+- <img src="assets/readme/money-dollar-circle-line.svg" width="16" height="16" align="top"> **Cost and rework:** your Claude Code tokens by project and kind of work, what they would cost at API prices, and how much went to rework (fixes and revisions after the first try)
+- <img src="assets/readme/loop-left-line.svg" width="16" height="16" align="top"> **Friction:** the files re-edited most, the tasks that needed the most retries, and what stands out
+- <img src="assets/readme/checkbox-circle-line.svg" width="16" height="16" align="top"> **Private:** built from local history only. Nothing leaves your machine
 
 </details>
 
-### Milo's Scroll
+### <img src="assets/readme/notification-3-line.svg" width="20" height="20" align="top"> Milo's Scroll
 
-- A frosted card with Milo and a short court phrase when Claude finishes, asks a question, needs permission, sits idle, or compacts
-- Blue for news, orange when Claude needs an answer. Click it to jump back to VS Code
-- No sound
-- Change it in Milo Kit settings, or by asking Claude with `/scroll`: turn it off, move it, keep it on screen longer, or test it
+- <img src="assets/readme/notification-3-line.svg" width="16" height="16" align="top"> **When it shows:** a frosted card with Milo and a short court phrase when Claude finishes, asks a question, needs permission, sits idle, or compacts
+- <img src="assets/readme/palette-line.svg" width="16" height="16" align="top"> **Colors:** blue for news, orange when Claude needs an answer. Click it to jump back to VS Code
+- <img src="assets/readme/volume-mute-line.svg" width="16" height="16" align="top"> **Quiet:** no sound by default. A soft chime is optional
+- <img src="assets/readme/settings-3-line.svg" width="16" height="16" align="top"> **Settings:** Milo Kit settings, or ask Claude with `/scroll`: turn it off, move it, keep it on screen longer, or test it
 
 ---
 
-## Settings
+## <img src="assets/readme/settings-3-line.svg" width="24" height="24" align="top"> Settings
 
 Open the **"..."** menu at the top right of any editor and choose **Milo Kit settings**. The Command Palette has it too.
+
+<img src="assets/readme/settings.png" alt="Milo Kit settings tab: presets, colors and a live preview" width="100%">
 
 | Section | What you can change |
 |---|---|
@@ -173,7 +179,7 @@ The preview on the right updates as you choose. **Save** applies your changes. C
 
 ---
 
-## Options
+## <img src="assets/readme/equalizer-line.svg" width="24" height="24" align="top"> Options
 
 Set options before `bash`:
 
@@ -190,7 +196,7 @@ curl -fsSL https://raw.githubusercontent.com/jaafarkhraizat/milo-kit/main/instal
 
 ---
 
-## Uninstall
+## <img src="assets/readme/delete-bin-line.svg" width="24" height="24" align="top"> Uninstall
 
 **1. Run this in Terminal**
 
@@ -206,7 +212,7 @@ This restores the settings you had before the first install and removes Milo's S
 
 ---
 
-## Troubleshooting
+## <img src="assets/readme/tools-line.svg" width="24" height="24" align="top"> Troubleshooting
 
 <details>
 <summary><b>Nothing changed after installing</b></summary>
@@ -246,11 +252,11 @@ The installer uses your Node.js, or the one inside VS Code. If it can't find eit
 
 ---
 
-## Requirements
+## <img src="assets/readme/checkbox-circle-line.svg" width="24" height="24" align="top"> Requirements
 
 - VS Code, VS Code Insiders, Cursor or VSCodium, with Claude Code
 - macOS. Linux should work for the theme. Milo's Scroll is macOS only. Windows is not supported
 
-## Credits
+## <img src="assets/readme/heart-3-line.svg" width="24" height="24" align="top"> Credits
 
 [Theme Mix](https://marketplace.visualstudio.com/items?itemName=tal7aouy.theme) · [Symbols](https://marketplace.visualstudio.com/items?itemName=miguelsolorio.symbols) · [Custom UI Style](https://marketplace.visualstudio.com/items?itemName=subframe7536.custom-ui-style) · [Claude Usage Bar](https://marketplace.visualstudio.com/items?itemName=harshagarwal1012.claude-usage-bar) · [RemixIcon](https://github.com/Remix-Design/RemixIcon) (Apache-2.0) · [Geist](https://github.com/vercel/geist-font) · [jsonc-parser](https://github.com/microsoft/node-jsonc-parser) (MIT)
