@@ -18,7 +18,7 @@ const ext = path.join(stage, 'extension');
 fs.mkdirSync(ext);
 for (const f of ['package.json', 'extension.js', 'media']) fs.cpSync(path.join(SRC, f), path.join(ext, f), { recursive: true });
 fs.mkdirSync(path.join(ext, 'lib'));
-fs.copyFileSync(path.join(KIT, 'lib', 'apply.js'), path.join(ext, 'lib', 'apply.js'));
+for (const f of ['apply.js', 'skills.js', 'skill-actions.js']) fs.copyFileSync(path.join(KIT, 'lib', f), path.join(ext, 'lib', f));
 fs.cpSync(path.join(KIT, 'lib', 'vendor'), path.join(ext, 'lib', 'vendor'), { recursive: true });
 fs.writeFileSync(path.join(ext, 'readme.md'), `# ${pkg.displayName}\n\n${pkg.description}\n\nPart of Milo Kit. Open it from the editor "..." menu: Milo Kit settings.\n`);
 

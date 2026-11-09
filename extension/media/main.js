@@ -17,7 +17,7 @@
   ];
   const SPOTS = ['top-left', 'top-center', 'top-right', 'bottom-left', 'bottom-center', 'bottom-right'];
   // Changes that only show after Custom UI Style reloads VS Code.
-  const RELOAD = ['colors', 'corners', 'features', 'initials', 'avatar', 'status.yellow', 'status.red', 'status.usageOnly', 'fonts.ui', 'fonts.code'];
+  const RELOAD = ['colors', 'corners', 'features', 'initials', 'avatar', 'status.yellow', 'status.red', 'status.usageOnly', 'fonts.ui', 'fonts.code', 'space.enabled', 'space.url', 'space.label'];
 
   let saved, draft, D;
 
@@ -224,6 +224,8 @@
     });
     $$('select[data-bind]').forEach((s) => { s.onchange = () => { set(draft, s.dataset.bind, s.value); render(); }; });
     const clean = (v) => v.replace(/[^\p{L}\p{N}]/gu, '').toUpperCase().slice(0, 3);
+    $('#spUrl').oninput = () => { draft.space.url = $('#spUrl').value.trim(); render(); };
+    $('#spLabel').oninput = () => { draft.space.label = $('#spLabel').value; render(); };
     $('#meText').oninput = () => { draft.initials = clean($('#meText').value); render(); };
     $('#agText').oninput = () => { draft.avatar.agentText = clean($('#agText').value); render(); };
     // The extension opens the file dialog and sends the file back; the page crops it here.
@@ -322,6 +324,8 @@
     $$('#spots button').forEach((b) => b.classList.toggle('on', b.dataset.v === draft.scroll.position));
     $$('.dep').forEach((d) => d.classList.toggle('off', !get(draft, d.dataset.dep)));
     const av = draft.avatar;
+    if (document.activeElement !== $('#spUrl')) $('#spUrl').value = draft.space.url;
+    if (document.activeElement !== $('#spLabel')) $('#spLabel').value = draft.space.label;
     if (document.activeElement !== $('#meText')) $('#meText').value = draft.initials;
     if (document.activeElement !== $('#agText')) $('#agText').value = av.agentText;
     $('#meText').hidden = av.me !== 'text';
@@ -379,6 +383,8 @@
       saved = clone(m.config);
       draft = clone(m.config);
       $('#ver').textContent = 'v' + m.version;
+      // in a VS Code profile window, your avatar is that profile's own and also shows in the title bar
+      if (m.profile) $('#meNote').textContent = `For the ${m.profile} profile only. Beside your messages, on your account card and in the title bar`;
       buildPresets();
       buildColors();
       buildCards('#productIcons', m.themes.product, 'icons.product');

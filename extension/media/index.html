@@ -53,7 +53,7 @@
       <h2>Chat features</h2>
       <p class="sub">What the kit adds to Claude Code. Turn off anything you don't use.</p>
       <h3>Look</h3>
-      <div class="row"><div class="l"><b>Your avatar</b><small>Beside your messages and on your account card</small></div><div class="pair"><div class="seg" data-bind="avatar.me" data-opts="text:Initials,image:Image"></div><input class="initials" id="meText" maxlength="3" aria-label="Your initials"><button class="pick" id="mePick" data-who="me"><span class="thumb"></span><span class="pl">Choose</span></button><button class="tg" data-bind="features.avatars" aria-label="Show your avatar"></button></div></div>
+      <div class="row"><div class="l"><b>Your avatar</b><small id="meNote">Beside your messages and on your account card</small></div><div class="pair"><div class="seg" data-bind="avatar.me" data-opts="text:Initials,image:Image"></div><input class="initials" id="meText" maxlength="3" aria-label="Your initials"><button class="pick" id="mePick" data-who="me"><span class="thumb"></span><span class="pl">Choose</span></button><button class="tg" data-bind="features.avatars" aria-label="Show your avatar"></button></div></div>
       <div class="row"><div class="l"><b>Claude's avatar</b><small>Beside each reply</small></div><div class="pair"><div class="seg" data-bind="avatar.agent" data-opts="claude:Claude,text:Text,image:Image"></div><input class="initials" id="agText" maxlength="3" aria-label="Claude's avatar text"><button class="pick" id="agPick" data-who="agent"><span class="thumb"></span><span class="pl">Choose</span></button></div></div>
       <div class="avgrid" id="agGrid" hidden></div>
       <div class="row"><div class="l"><b>Milo on empty chat</b><small>Shown before your first message</small></div><button class="tg" data-bind="features.milo"></button></div>
@@ -63,12 +63,20 @@
       <div class="row"><div class="l"><b>Token count</b><small>Tokens spent in this chat, and the usage dashboard</small></div><button class="tg" data-bind="features.tokens"></button></div>
       <div class="row"><div class="l"><b>MCP avatars</b><small>Servers used in this chat</small></div><button class="tg" data-bind="features.mcp"></button></div>
       <div class="row"><div class="l"><b>Tasks and agents</b><small>Tasks badge and the agents chip</small></div><button class="tg" data-bind="features.tasks"></button></div>
+      <h3>Space button</h3>
+      <div class="row"><div class="l"><b>Show the button</b><small>A header button, left of Bookmarks, that opens a web page</small></div><button class="tg" data-bind="space.enabled"></button></div>
+      <div class="dep" data-dep="space.enabled">
+        <div class="row"><div class="l"><b>URL</b><small>An https link, such as a Claude artifact</small></div><input class="txt" id="spUrl" type="url" spellcheck="false" aria-label="Space URL"></div>
+        <div class="row"><div class="l"><b>Label</b><small>The button tooltip</small></div><input class="txt" id="spLabel" maxlength="30" aria-label="Space label"></div>
+        <div class="row"><div class="l"><b>Open when VS Code starts</b></div><button class="tg" data-bind="space.openOnStartup"></button></div>
+      </div>
       <h3>Working in the chat</h3>
       <div class="row"><div class="l"><b>Chat map</b><small>Minimap of the whole conversation</small></div><button class="tg" data-bind="features.map"></button></div>
       <div class="row"><div class="l"><b>Pinned prompt</b><small>Your last prompt pins while you scroll up</small></div><button class="tg" data-bind="features.pin"></button></div>
       <div class="row"><div class="l"><b>Expand long messages</b><small>Click to open in full</small></div><button class="tg" data-bind="features.expand"></button></div>
       <div class="row"><div class="l"><b>Queued messages</b><small>Edit or delete before Claude takes them</small></div><button class="tg" data-bind="features.queue"></button></div>
       <div class="row"><div class="l"><b>Rename tabs</b><small>Right-click or F2 on a Claude tab</small></div><button class="tg" data-bind="features.rename"></button></div>
+      <div class="row"><div class="l"><b>Skills</b><small>Your skills and their actions in the sessions panel</small></div><button class="tg" data-bind="features.skills"></button></div>
     </section>
 
     <section id="scroll">

@@ -101,8 +101,9 @@ Your own settings, your avatar initials and everything you chose in Milo Kit set
 - **Reply bubble:** Claude's final reply in each turn sits in a soft bubble, with copy and bookmark pinned to its corner while you scroll
 - **Typed chips:** skills, commands, keys, files, times, dates, durations, numbers, statuses, commits, agents and MCP tools in inline code each get their own style. Hex colors show a swatch
 - **Callouts:** a quote that starts with a bold title (**Next**, **Warning**, **Decision**...) becomes a tinted card. Number columns in tables line up
-- **Avatars:** for you and Claude: initials, text or your own image (set in Milo Kit settings > Chat features)
+- **Avatars:** for you and Claude: initials, text or your own image (set in Milo Kit settings > Chat features). With VS Code profiles, your avatar is per profile: set it from a window of that profile. It shows beside your messages, on the account card (matched by the profile's Claude account) and next to the window title (matched by the profile's `window.title`)
 - **Sessions panel:** account and usage in one card, a clear **New session** button
+- **Skills:** a section in the sessions panel listing your skills (project, personal, plugins, claude.ai, built in), with search. Open a skill to see its actions, each with a short explanation; click one to put it in the message box. The list follows each profile's Claude account and refreshes when a skills folder changes. Actions live in `lib/skill-actions.js`; skills not listed there get one from their `argument-hint`, or a plain **Use**
 - **Milo:** on the empty chat screen
 - **Tab icons:** show state: idle, working, done, needs you
 - **Image previews:** thumbnails of images Claude reads, right under the "Read file.png" line
@@ -117,6 +118,13 @@ Your own settings, your avatar initials and everything you chose in Milo Kit set
 
 - **Usage:** your plan usage, with only Bookmarks and the chat map on the right
 - **Token count:** tokens spent in this chat, a small number left of Bookmarks. Hover for input, output and cache figures
+- **Space button:** an optional lantern icon in the chat header, left of Bookmarks, that opens a web page you choose (a Claude artifact, a dashboard). Off by default. Set the URL, the tooltip label and "Open when VS Code starts" in Milo Kit settings > Chat features > Space button, or in `~/.milo-kit/config.json`:
+
+  ```json
+  "space": { "enabled": true, "label": "Emberwake", "url": "https://claude.ai/artifact/...", "openOnStartup": true }
+  ```
+
+  The button asks Claude Code's own `open_url` request to open the page, which ends in VS Code's `openExternal`, so it opens in your default browser. The command **Open space** (`miloKit.openSpace`) does the same from the Command Palette. With "Open when VS Code starts" on, each new VS Code window opens the page once. Opening it as an in-editor panel with `simpleBrowser.show` was not tested (it needs a live VS Code), so there is no `openIn` setting yet.
 - **MCP avatars:** servers used in the chat, as overlapping logo avatars. Hover one for its calls and tools. Logos ship with the kit, so nothing is fetched
 - **Tasks:** a badge. Click it for task and agent details
 
@@ -171,7 +179,7 @@ Open the **"..."** menu at the top right of any editor and choose **Milo Kit set
 |---|---|
 | Look | Presets (Milo, Ember, Moss, Ink), accent, backgrounds, text colors, corners |
 | Icons and fonts | App icon (Milo or stock, macOS), interface icons, file icons (any pack you have installed), interface and code fonts, code size |
-| Chat features | Your avatar and Claude's (text or your own image; images you put in `~/.milo-kit/avatars/` show as presets), and each extra on or off: Milo, tab icons, image previews, token count, MCP avatars, tasks, chat map, pinned prompt, expand, queued messages, rename |
+| Chat features | Your avatar and Claude's (text or your own image; images you put in `~/.milo-kit/avatars/` show as presets), and each extra on or off: Milo, tab icons, image previews, token count, Space button, MCP avatars, tasks, chat map, pinned prompt, expand, queued messages, rename |
 | Milo's Scroll | On or off, which events show it, position, how long it stays, a soft chime, a test card |
 | Status bar | Usage only, which limit, progress bar, when it turns yellow and red, the usage summary |
 

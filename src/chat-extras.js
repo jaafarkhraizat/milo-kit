@@ -801,7 +801,7 @@
       el.className = 'mkTokens';
       el.innerHTML = COIN_ICON + '<b></b>';
     }
-    const ref = q(':scope > button[aria-label="Bookmarks"]', header) || q(':scope > .mkMapToggle', header);
+    const ref = q(':scope > .mkSpace', header) || q(':scope > button[aria-label="Bookmarks"]', header) || q(':scope > .mkMapToggle', header);
     if (ref ? el.nextElementSibling !== ref : el.parentElement !== header) header.insertBefore(el, ref || null);
     const key = usageVer + ':' + sidOf(s) + ':' + partial.has(s);
     if (key === tokensDrawn && el.isConnected) return;
@@ -818,6 +818,35 @@
       '\nCache write ' + tokenLong(t.cache_creation_input_tokens) + ' · Cache read ' + tokenLong(t.cache_read_input_tokens) +
       (partial.has(s) ? '\nCounted since this view opened' : '') : '';
     if (el.title !== label) { el.title = label; if (label) el.setAttribute('aria-label', label.split('\n')[0]); else el.removeAttribute('aria-label'); }
+  }
+  // Space button: a lantern icon directly before Bookmarks (after the token count) that opens a web page, set in Milo Kit
+  // settings (window.__mkSpace, written by lib/apply.js). Opening goes through Claude's own open_url request, which ends in
+  // the extension host's openExternal; a plain link click inside the webview is not relied on.
+  const SPACE_ICON = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 4.6V3.8a2 2 0 0 1 4 0v.8"/><rect x="7" y="4.6" width="10" height="2.6" rx="1"/><path d="M7.6 7.2C5.6 10 5.6 14 7.6 17h8.8c2-3 2-7 0-9.8"/><rect x="7" y="17" width="10" height="2.6" rx="1"/><path d="M12 9.8c1.3 1.5 1.6 2.4 0 4.2-1.6-1.8-1.3-2.7 0-4.2z"/></svg>';
+  function syncSpace() {
+    const cfg = window.__mkSpace;
+    const usage = q('.ccUsage');
+    const header = usage && usage.parentElement;
+    if (!header) return;
+    let b = q(':scope > .mkSpace', header);
+    if (!cfg || !cfg.url) { if (b) b.remove(); return; }
+    if (!b) {
+      b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'mkSpace';
+      b.innerHTML = SPACE_ICON;
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const url = b.getAttribute('data-url');
+        const conn = window.__ccConn;
+        if (conn && conn.sendRequest) conn.sendRequest({ type: 'open_url', url }).catch(() => { window.open(url, '_blank'); });
+        else window.open(url, '_blank');
+      });
+    }
+    if (b.getAttribute('data-url') !== cfg.url) b.setAttribute('data-url', cfg.url);
+    if (b.title !== cfg.label) { b.title = cfg.label; b.setAttribute('aria-label', cfg.label); }
+    const ref = q(':scope > button[aria-label="Bookmarks"]', header) || q(':scope > .mkMapToggle', header);
+    if (ref ? b.nextElementSibling !== ref : b.parentElement !== header) header.insertBefore(b, ref || null);
   }
   // Usage dashboard button: in the "Account & usage" section header, between the collapse toggle and Claude's
   // "View details" link. The section's own account and usage rows stay as they are.
@@ -1454,7 +1483,8 @@
   }
   // the sessions sidebar's request arrives as Claude's own "open Account & usage" message plus mk:1; the webview patch
   // turns that into a "mk-dash" event instead of Claude's dialog (build-chat-extras section 2b d).
-  window.addEventListener('mk-dash', () => {
+  window.addEventListener('mk-dash', (e) => {
+    if (typeof e.detail === 'string' && e.detail.indexOf('skill:') === 0) return; // a skill action (section 15)
     if (dash && !dash.hidden) { dash.scrollTop = 0; return; }
     openUsage(null);
   });
@@ -1888,13 +1918,226 @@
     });
   }
 
-  setInterval(() => { syncAgents(); syncTokens(); syncAcctDash(); syncMcp(); syncFinal(); syncReplies(); syncQuotes(); }, 1000);
+  // 15. Skills: a "Skills" section in the sessions sidebar, between Account & usage and Session manager. It borrows
+  //     Claude's own section header (same toggle, chevron and label) and a card like the account card. Each skill
+  //     opens to its actions; clicking an action puts its text in the message box. The list comes from lib/skills.js
+  //     (resources/mk-skills.css, base64 JSON keyed by account email). The sidebar is its own webview, so the text
+  //     rides Claude's "open Account & usage" request with mk:"skill:<text>" to the chat pane (see section 11).
+  const SK = {
+    bolt: 'M13 10H20L11 23V14H4L13 1V10Z',
+    add: 'M11 11V5H13V11H19V13H13V19H11V13H5V11H11Z',
+    check: 'M10.0007 15.1709L19.1931 5.97852L20.6073 7.39273L10.0007 17.9993L3.63672 11.6354L5.05093 10.2212L10.0007 15.1709Z',
+    search: 'M18.031 16.6168L22.3137 20.8995L20.8995 22.3137L16.6168 18.031C15.0769 19.263 13.124 20 11 20C6.032 20 2 15.968 2 11C2 6.032 6.032 2 11 2C15.968 2 20 6.032 20 11C20 13.124 19.263 15.0769 18.031 16.6168ZM16.0247 15.8748C17.2475 14.6146 18 12.8956 18 11C18 7.1325 14.8675 4 11 4C7.1325 4 4 7.1325 4 11C4 14.8675 7.1325 18 11 18C12.8956 18 14.6146 17.2475 15.8748 16.0247L16.0247 15.8748Z',
+    chev: 'M13.1717 12.0007L8.22192 7.05093L9.63614 5.63672L16.0001 12.0007L9.63614 18.3646L8.22192 16.9504L13.1717 12.0007Z',
+  };
+  let skStore = null, skState = 'idle', skHead = null, skBody = null, skOpenName = '', skQuery = '', skSig = '';
+  let skCollapsed = store.get('mkSkills') !== 'open';
+
+  function loadSkills(done) {
+    const ref = qa('link[rel="stylesheet"]').find((l) => /\/webview\/index\.css/.test(l.href));
+    if (!ref) { skState = 'missing'; done(); return; }
+    skState = skStore ? 'ready' : 'loading';
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.className = 'mkSkillsLink';
+    link.href = ref.href.replace(/\/webview\/index\.css.*/, '/resources/mk-skills.css') + '?v=' + Date.now();
+    const finish = (ok) => {
+      if (ok) {
+        try {
+          const probe = document.createElement('i');
+          probe.className = 'mkSkillsData';
+          probe.hidden = true;
+          document.body.appendChild(probe);
+          let raw = getComputedStyle(probe).getPropertyValue('--mk-skills').trim();
+          probe.remove();
+          if (raw.charAt(0) === '"' || raw.charAt(0) === "'") raw = raw.slice(1, -1);
+          const bin = atob(raw);
+          const bytes = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+          skStore = JSON.parse(new TextDecoder().decode(bytes));
+          skState = 'ready';
+        } catch (e) { skState = skStore ? 'ready' : 'missing'; }
+      } else skState = skStore ? 'ready' : 'missing';
+      qa('link.mkSkillsLink').forEach((l) => l.remove());
+      done();
+    };
+    link.onload = () => finish(true);
+    link.onerror = () => finish(false);
+    document.head.appendChild(link);
+  }
+
+  // this account's groups: matched by the email on the Account card, else the last one seen, else the newest
+  function skGroups() {
+    const acc = (skStore && skStore.accounts) || {};
+    const shown = q('[class*="accountUsageBody_"] [class*="accountValue_"]');
+    const email = shown ? norm(shown.textContent) : '';
+    if (email) store.set('mkSkillsEmail', email);
+    const key = [email, store.get('mkSkillsEmail') || ''].find((k) => k && acc[k]);
+    if (key) return acc[key].groups || [];
+    const newest = Object.values(acc).sort((a, b) => (b.at || 0) - (a.at || 0))[0];
+    return newest ? newest.groups || [] : [];
+  }
+
+  function skMatch(s, words) {
+    if (!words.length) return true;
+    const hay = (s.n + ' ' + s.d + ' ' + s.a.map((a) => a[0] + ' ' + a[1]).join(' ')).toLowerCase();
+    return words.every((w) => hay.indexOf(w) >= 0);
+  }
+
+  function paintSkills() {
+    if (!skBody) return;
+    const list = q('.mkSkList', skBody);
+    const groups = skGroups();
+    const total = groups.reduce((a, g) => a + g.skills.length, 0);
+    const count = q('.mkSkCount', skHead);
+    if (count) count.textContent = total ? String(total) : '';
+    const words = skQuery.toLowerCase().split(/\s+/).filter(Boolean);
+    const sig = JSON.stringify([skState, skQuery, skOpenName, groups.map((g) => g.label + g.skills.map((s) => s.n + s.a.length).join())]);
+    if (sig === skSig) return;
+    skSig = sig;
+    if (skState === 'loading' && !total) { list.innerHTML = '<p class="mkSkEmpty">Loading skills…</p>'; return; }
+    if (!total) { list.innerHTML = '<p class="mkSkEmpty">No skills found. Open Milo Kit settings once, or run <code>node lib/skills.js</code> in the kit folder.</p>'; return; }
+    let h = '', shown = 0;
+    groups.forEach((g, gi) => {
+      const items = g.skills.map((s, si) => [s, si]).filter(([s]) => skMatch(s, words));
+      if (!items.length) return;
+      shown += items.length;
+      h += '<div class="mkSkGroup"><span>' + escH(g.label) + '</span><em>' + items.length + '</em></div>';
+      items.forEach(([s, si]) => {
+        const open = s.n === skOpenName;
+        const id = 'mkSk' + gi + '_' + si;
+        h += '<div class="mkSkItem"' + (open ? ' data-open' : '') + '>' +
+          '<button type="button" class="mkSkRow" data-name="' + escH(s.n) + '" title="' + escH(s.n + (s.d && !open ? '\n' + s.d : '')) + '" aria-expanded="' + open + '" aria-controls="' + id + '">' +
+          '<i class="mkSkBolt">' + ico(SK.bolt, 13) + '</i><span class="mkSkName">' + escH(s.n) + '</span>' +
+          '<em class="mkSkN" title="' + s.a.length + (s.a.length === 1 ? ' action' : ' actions') + '">' + s.a.length + '</em>' +
+          '<i class="mkSkChev">' + ico(SK.chev, 14) + '</i></button>';
+        if (open) {
+          h += '<div class="mkSkDetail" id="' + id + '">' + (s.d ? '<p class="mkSkDesc">' + escH(s.d) + '</p>' : '') + '<ul class="mkSkActs">' +
+            s.a.map((a) => '<li><button type="button" class="mkSkAct" data-text="' + escH(a[2]) + '" title="Add to chat: ' + escH(a[2].trim()) + '">' +
+              '<span class="mkSkActTx"><b>' + escH(a[0]) + '</b><small>' + escH(a[1]) + '</small></span>' +
+              '<i class="mkSkAdd" aria-hidden="true">' + ico(SK.add, 14) + '</i></button></li>').join('') +
+            '</ul></div>';
+        }
+        h += '</div>';
+      });
+    });
+    list.innerHTML = shown ? h : '<p class="mkSkEmpty">No skills match “' + escH(skQuery) + '”.</p>';
+  }
+
+  // the action's text into the message box: slash commands go first, plain text goes after what you typed
+  function skillIntoBox(text) {
+    const box = composerInput();
+    if (!box) return false;
+    const cur = box.innerText.replace(/\n+/g, '\n').replace(/\s+/g, (m) => (m.indexOf('\n') >= 0 ? '\n' : ' ')).trim();
+    let next = text;
+    if (cur) next = text.charAt(0) === '/' ? text.trim() + ' ' + cur : cur + ' ' + text;
+    setInput(box, next);
+    box.focus();
+    try {
+      const r = document.createRange();
+      r.selectNodeContents(box);
+      r.collapse(false);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(r);
+    } catch (e) {}
+    return true;
+  }
+  window.addEventListener('mk-dash', (e) => {
+    if (typeof e.detail === 'string' && e.detail.indexOf('skill:') === 0) skillIntoBox(e.detail.slice(6));
+  });
+  function skillToChat(text) {
+    if (q('[class*="messagesContainer_"]') && skillIntoBox(text)) return;
+    const conn = window.__ccConn;
+    if (conn && conn.sendRequest) conn.sendRequest({ type: 'open_account_usage', mk: 'skill:' + text }).catch(() => {});
+  }
+
+  function setSkCollapsed(v) {
+    skCollapsed = v;
+    store.set('mkSkills', v ? 'closed' : 'open');
+    const t = q('button', skHead);
+    t.setAttribute('aria-expanded', String(!v));
+    t.title = v ? 'Expand skills' : 'Collapse skills';
+    const chev = q('svg', t);
+    const base = chev && Array.from(chev.classList).find((c) => c.indexOf('sectionChevron_') === 0);
+    if (base) chev.classList.toggle(base.replace('sectionChevron_', 'sectionChevronExpanded_'), !v);
+    skBody.hidden = v;
+    if (!v) { skSig = ''; paintSkills(); loadSkills(paintSkills); }
+  }
+
+  function makeSkills(accHead) {
+    const accToggle = q(':scope > button', accHead);
+    const chevSrc = q('svg', accToggle);
+    const label = q('[class*="sectionLabel_"]', accToggle);
+    skHead = document.createElement('div');
+    skHead.className = accHead.className + ' mkSkHead';
+    const t = document.createElement('button');
+    t.type = 'button';
+    t.className = accToggle.className;
+    if (chevSrc) {
+      const c = chevSrc.cloneNode(true);
+      Array.from(c.classList).filter((x) => x.indexOf('sectionChevronExpanded_') === 0).forEach((x) => c.classList.remove(x));
+      t.appendChild(c);
+    }
+    const sp = document.createElement('span');
+    sp.className = label ? label.className : '';
+    sp.textContent = 'Skills';
+    t.appendChild(sp);
+    t.addEventListener('click', () => setSkCollapsed(!skCollapsed));
+    skHead.appendChild(t);
+    const count = document.createElement('span');
+    count.className = 'mkSkCount';
+    skHead.appendChild(count);
+
+    skBody = document.createElement('div');
+    skBody.className = 'mkSkBody';
+    skBody.innerHTML = '<label class="mkSkSearch">' + ico(SK.search, 14) + '<input type="text" placeholder="Search skills" aria-label="Search skills" spellcheck="false"></label><div class="mkSkList"></div>';
+    const input = q('input', skBody);
+    input.addEventListener('input', () => { skQuery = input.value.trim(); paintSkills(); });
+    input.addEventListener('keydown', (e) => { if (e.key === 'Escape' && input.value) { e.stopPropagation(); input.value = ''; skQuery = ''; paintSkills(); } });
+    skBody.addEventListener('click', (e) => {
+      const act = e.target instanceof Element && e.target.closest('.mkSkAct');
+      if (act) {
+        skillToChat(act.getAttribute('data-text'));
+        act.setAttribute('data-added', '');
+        q('.mkSkAdd', act).innerHTML = ico(SK.check, 14);
+        setTimeout(() => { act.removeAttribute('data-added'); const a = q('.mkSkAdd', act); if (a) a.innerHTML = ico(SK.add, 14); }, 1400);
+        return;
+      }
+      const row = e.target instanceof Element && e.target.closest('.mkSkRow');
+      if (!row) return;
+      const name = row.getAttribute('data-name');
+      skOpenName = skOpenName === name ? '' : name;
+      paintSkills();
+      const again = qa('.mkSkRow', skBody).find((r) => r.getAttribute('data-name') === name);
+      if (again) { again.focus(); if (skOpenName) again.parentElement.scrollIntoView({ block: 'nearest' }); }
+    });
+    setSkCollapsed(skCollapsed);
+  }
+
+  // keep the section right before Session manager (React re-inserts its own nodes; ours follow)
+  function syncSkills() {
+    const accToggle = q('[class*="sectionHeader_"] > button[title*="ccount & usage"]');
+    if (!accToggle || off('skills')) { if (skHead) { skHead.remove(); skBody.remove(); } return; }
+    const accHead = accToggle.parentElement;
+    if (!skHead) makeSkills(accHead);
+    const sesToggle = q('[class*="sectionHeader_"] > button[title*="ession manager"]');
+    const ref = sesToggle ? sesToggle.parentElement : null;
+    const parent = ref ? ref.parentElement : accHead.parentElement;
+    if (ref) {
+      if (skBody.nextElementSibling !== ref) parent.insertBefore(skBody, ref);
+      if (skHead.nextElementSibling !== skBody) parent.insertBefore(skHead, skBody);
+    } else if (skHead.parentElement !== parent) { parent.appendChild(skHead); parent.appendChild(skBody); }
+    if (!skBody.hidden) paintSkills();
+  }
+
+  setInterval(() => { syncAgents(); syncTokens(); syncSpace(); syncAcctDash(); syncSkills(); syncMcp(); syncFinal(); syncReplies(); syncQuotes(); }, 1000);
 
   let timer = 0;
-  function schedule() { if (!timer) timer = setTimeout(() => { timer = 0; build(); syncAgents(); syncTokens(); syncAcctDash(); syncMcp(); syncTypes(); syncFinal(); syncReplies(); syncQuotes(); }, 200); }
+  function schedule() { if (!timer) timer = setTimeout(() => { timer = 0; build(); syncAgents(); syncTokens(); syncSpace(); syncAcctDash(); syncSkills(); syncMcp(); syncTypes(); syncFinal(); syncReplies(); syncQuotes(); }, 200); }
   // React to Claude's DOM only. Mutations inside the kit's own elements (map, chips, panel, held bubbles,
   // thumbnails) would otherwise re-trigger build() + syncAgents() in an endless 200 ms loop.
-  const OWN = '.mkMap, .mkAgents, .mkTasks, .mkPanel, .mkHeld, .mkThumb, .mkMapToggle, .mkTokens, .mkDashBtn, .mkMcp, .mkUsage, .mkQuoteBtn, .mkReply';
+  const OWN = '.mkMap, .mkAgents, .mkTasks, .mkPanel, .mkHeld, .mkThumb, .mkMapToggle, .mkTokens, .mkSpace, .mkDashBtn, .mkMcp, .mkUsage, .mkQuoteBtn, .mkReply, .mkSkHead, .mkSkBody';
   const isOwn = (n) => { const el = n && (n.nodeType === 1 ? n : n.parentElement); return !!(el && el.closest(OWN)); };
   new MutationObserver((list) => {
     placeModelMenu();

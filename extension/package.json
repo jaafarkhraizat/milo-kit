@@ -8,10 +8,11 @@
   "engines": { "vscode": "^1.80.0" },
   "categories": ["Other"],
   "main": "./extension.js",
-  "activationEvents": [],
+  "activationEvents": ["onStartupFinished"],
   "contributes": {
     "commands": [
-      { "command": "miloKit.openSettings", "title": "Milo Kit settings", "icon": "$(settings-gear)" }
+      { "command": "miloKit.openSettings", "title": "Milo Kit settings", "icon": "$(settings-gear)" },
+      { "command": "miloKit.openSpace", "title": "Open space" }
     ],
     "menus": {
       "editor/title": [

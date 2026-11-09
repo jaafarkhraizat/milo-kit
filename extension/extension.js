@@ -22,7 +22,48 @@ function contextPaths(context) {
   const editorHome = path.dirname(path.dirname(context.extensionPath));
   // appRoot is <Editor>.app/Contents/Resources/app on macOS
   const appPath = path.resolve(vscode.env.appRoot, '..', '..', '..');
-  return { userDir, editorHome, settingsPath: path.join(userDir, 'settings.json'), appPath };
+  const profile = activeProfile(userDir);
+  return { userDir, editorHome, settingsPath: profile ? profile.settingsPath : path.join(userDir, 'settings.json'), appPath, profile };
+}
+
+// The VS Code profile of this window, or null for the default profile. VS Code has no API for it: the
+// workspace's profile comes from globalStorage/storage.json (profileAssociations), the name from userDataProfiles.
+// email: the profile's Claude account (CLAUDE_CONFIG_DIR in claudeCode.environmentVariables, else ~/.claude.json).
+// title: the profile's window.title when it is plain text (the title bar avatar matches on it).
+function activeProfile(userDir) {
+  try {
+    const store = JSON.parse(fs.readFileSync(path.join(userDir, 'globalStorage', 'storage.json'), 'utf8'));
+    const ws = vscode.workspace.workspaceFile || (vscode.workspace.workspaceFolders || [])[0]?.uri;
+    const loc = ws && ((store.profileAssociations || {}).workspaces || {})[ws.toString()];
+    const prof = loc && (store.userDataProfiles || []).find((p) => p.location === loc);
+    if (!prof) return null;
+    const settingsPath = path.join(userDir, 'profiles', loc, 'settings.json');
+    if (!fs.existsSync(settingsPath)) return null;
+    const env = vscode.workspace.getConfiguration('claudeCode').get('environmentVariables');
+    const dir = (Array.isArray(env) ? env : []).find((e) => e && e.name === 'CLAUDE_CONFIG_DIR');
+    const claudeJson = dir && dir.value ? path.join(dir.value, '.claude.json') : path.join(os.homedir(), '.claude.json');
+    let email = '';
+    try { email = (JSON.parse(fs.readFileSync(claudeJson, 'utf8')).oauthAccount || {}).emailAddress || ''; } catch { /* not signed in */ }
+    const title = String(vscode.workspace.getConfiguration('window').get('title') || '');
+    return { name: prof.name, settingsPath, email, title: title.includes('${') ? '' : title };
+  } catch { return null; }
+}
+
+// The settings tab edits avatar.me / meImage. In a profile window those are the profile's own: swapped in
+// for the page, and back into avatar.profiles on save, so the shared avatar and other profiles stay as they are.
+function toPage(cfg, profile) {
+  const out = JSON.parse(JSON.stringify(cfg));
+  const own = profile && cfg.avatar.profiles[profile.name];
+  if (own) Object.assign(out.avatar, { me: own.me, meImage: own.meImage });
+  return out;
+}
+function fromPage(cfg, profile, stored) {
+  const out = JSON.parse(JSON.stringify(cfg));
+  out.avatar.profiles = { ...stored.avatar.profiles };
+  if (!profile) return out;
+  out.avatar.profiles[profile.name] = { email: profile.email, title: profile.title, me: cfg.avatar.me, meImage: cfg.avatar.meImage };
+  Object.assign(out.avatar, { me: stored.avatar.me, meImage: stored.avatar.meImage });
+  return out;
 }
 
 // The app icon cards: Milo art from media, and a small PNG of the editor's own icon (webviews can't show .icns).
@@ -188,9 +229,11 @@ function open(context) {
     try {
       const A = loadApply();
       if (msg.type === 'init') {
+        const ctx = contextPaths(context);
         web.postMessage({
           type: 'init',
-          config: A.loadConfig(contextPaths(context).settingsPath, contextPaths(context).appPath),
+          config: toPage(A.loadConfig(ctx.settingsPath, ctx.appPath), ctx.profile),
+          profile: ctx.profile && ctx.profile.name,
           defaults: A.DEFAULTS,
           presets: A.PRESETS,
           swatches: A.SWATCHES,
@@ -202,9 +245,11 @@ function open(context) {
           version: context.extension.packageJSON.version,
         });
       } else if (msg.type === 'save') {
-        const { settingsPath } = contextPaths(context);
-        const result = A.apply(msg.config, { ...contextPaths(context) });
-        web.postMessage({ type: 'saved', config: result.config });
+        const ctx = contextPaths(context);
+        const { settingsPath } = ctx;
+        const stored = A.loadConfig(settingsPath, ctx.appPath);
+        const result = A.apply(fromPage(msg.config, ctx.profile, stored), ctx);
+        web.postMessage({ type: 'saved', config: toPage(result.config, ctx.profile) });
         if (result.reload && msg.reload !== false) {
           const cmds = await vscode.commands.getCommands(true);
           if (cmds.includes('custom-ui-style.reload')) {
@@ -250,8 +295,70 @@ function open(context) {
   });
 }
 
+// The Space button's page (config.space in ~/.milo-kit/config.json). Opens in the default browser.
+// Not tested: vscode's simpleBrowser as an in-editor panel, which needs a live VS Code (see README, Space button).
+function spaceConfig() {
+  try {
+    const s = JSON.parse(fs.readFileSync(path.join(os.homedir(), '.milo-kit', 'config.json'), 'utf8')).space || {};
+    return /^https?:\/\//.test(s.url || '') ? s : null;
+  } catch { return null; }
+}
+async function openSpace() {
+  const s = spaceConfig();
+  if (!s) { vscode.window.showInformationMessage('Milo Kit: set a Space URL in Milo Kit settings first.'); return; }
+  await vscode.env.openExternal(vscode.Uri.parse(s.url));
+}
+
+// The Skills section in the sessions sidebar reads a list that lib/skills.js writes. Built here because this
+// window knows its Claude account (CLAUDE_CONFIG_DIR) and its workspace folders; rebuilt when a skills folder changes.
+function loadSkills() {
+  const kitCopy = path.join(os.homedir(), '.milo-kit', 'kit', 'lib', 'skills.js');
+  const file = fs.existsSync(kitCopy) ? kitCopy : path.join(__dirname, 'lib', 'skills.js');
+  delete require.cache[require.resolve(file)];
+  const actions = path.join(path.dirname(file), 'skill-actions.js');
+  if (fs.existsSync(actions)) delete require.cache[require.resolve(actions)];
+  return require(file);
+}
+function skillsContext() {
+  const env = vscode.workspace.getConfiguration('claudeCode').get('environmentVariables');
+  const dir = (Array.isArray(env) ? env : []).find((e) => e && e.name === 'CLAUDE_CONFIG_DIR');
+  const configDir = dir && dir.value ? dir.value : path.join(os.homedir(), '.claude');
+  const projects = (vscode.workspace.workspaceFolders || []).map((f) => f.uri.fsPath);
+  return { configDir, projects };
+}
+function startSkills(context) {
+  let timer = 0, watchers = [];
+  const run = () => {
+    try {
+      const ctx = skillsContext();
+      const skills = loadSkills();
+      skills.build({ ...ctx, email: skills.emailFor(ctx.configDir) });
+      watchers.forEach((w) => w.close());
+      watchers = skills.watchDirs(ctx).filter((d) => fs.existsSync(d)).map((d) => {
+        try { return fs.watch(d, { recursive: true }, () => { clearTimeout(timer); timer = setTimeout(run, 1500); }); } catch (e) { return null; }
+      }).filter(Boolean);
+    } catch (e) { /* the sidebar keeps the last list */ }
+  };
+  setTimeout(run, 2000);
+  context.subscriptions.push(vscode.workspace.onDidChangeWorkspaceFolders(run));
+  context.subscriptions.push({ dispose: () => watchers.forEach((w) => w.close()) });
+}
+
 function activate(context) {
   context.subscriptions.push(vscode.commands.registerCommand('miloKit.openSettings', () => open(context)));
+  context.subscriptions.push(vscode.commands.registerCommand('miloKit.openSpace', openSpace));
+  startSkills(context);
+  // Once per VS Code start (activation happens once per window start, after startup finishes).
+  const s = spaceConfig();
+  if (s && s.enabled && s.openOnStartup) openSpace().catch(() => {});
+  // A VS Code update resets the app icon; the first start after it puts Milo back.
+  setTimeout(() => {
+    try {
+      const app = path.resolve(vscode.env.appRoot, '..', '..', '..');
+      const restore = loadApply().restoreAppIcon;
+      if (restore && app.endsWith('.app')) restore(app);
+    } catch (e) { /* the icon stays stock until the next start */ }
+  }, 3000);
 }
 
 function deactivate() {}

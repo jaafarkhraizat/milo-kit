@@ -110,6 +110,7 @@ input[type=color]::-webkit-color-swatch { border: 0; border-radius: 5px; }
 .seg button:disabled { color: var(--fg-3); cursor: not-allowed; text-decoration: line-through; }
 .seg button:focus-visible { outline: 2px solid var(--accent); }
 select { background: var(--bg-card); color: var(--fg); border: 1px solid var(--edge-2); border-radius: var(--r-sm); padding: 5px 8px; font: inherit; min-width: 160px; }
+.txt { width: 260px; max-width: 100%; background: var(--bg-card); border: 1px solid var(--edge-2); color: var(--fg); border-radius: 6px; padding: 5px 8px; font: 500 12px 'Geist Mono', Menlo, monospace; }
 .initials { width: 48px; text-align: center; background: var(--bg-card); border: 1px solid var(--edge-2); color: var(--fg); border-radius: 6px; padding: 4px 6px; font: 500 12px 'Geist Mono', Menlo, monospace; text-transform: uppercase; }
 .tg { all: unset; width: 32px; height: 18px; border-radius: 999px; background: color-mix(in srgb, var(--fg) 16%, transparent); position: relative; cursor: pointer; flex-shrink: 0; transition: background .18s var(--ease); }
 .tg::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: transform .18s var(--ease); }

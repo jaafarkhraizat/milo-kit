@@ -103,6 +103,11 @@ const BUSY_REP = 'className:$1.sendButton,"data-permission-mode":$2,"data-mk-bus
     foldIntoGap(tab, '(onDidChangeViewState', 'request:\\{type:"open_account_usage_dialog"\\}', 'request:{type:"open_account_usage_dialog",mk:globalThis.__mkDash}');
     list.splice(list.indexOf(tab), 0, DASH_IN);
   }
+  // e) the handoff also carries skill actions (chat-extras section 15): mk is "skill:<text>", passed on as the
+  //    event's detail. Older builds fired the event without it.
+  big.replace = big.replace.replace(/if\(\$(\d+)\.request\.mk\)\{window\.dispatchEvent\(new CustomEvent\("mk-dash"\)\)/,
+    (all, n) => 'if($' + n + '.request.mk){window.dispatchEvent(new CustomEvent("mk-dash",{detail:$' + n + '.request.mk}))');
+  if (!/new CustomEvent\("mk-dash",\{detail:/.test(big.replace)) throw new Error('mk-dash detail patch not applied');
   // b) extension.js: chain all entries in file order (each must match once, no overlap)
   const ext = list.filter((p) => p.filePath === 'extension.js');
   if (ext.length > 1) {
@@ -189,6 +194,15 @@ const rules = {
     'width': 'auto', 'min-width': '20px', 'padding': '0 5px 0 8px', 'border-radius': '999px', 'box-sizing': 'border-box',
     'background': 'rgba(255, 255, 255, 0.08) !important', 'color': '#9aa3b2 !important', 'font': "500 9.5px/1 'Geist Mono', Menlo, monospace",
   },
+  '.mkSpace': {
+    'display': 'inline-grid', 'place-items': 'center', 'flex': 'none', 'width': '28px', 'height': '28px', 'padding': '0', 'margin': '0',
+    'appearance': 'none', 'border': '0', 'border-radius': '8px', 'background': 'transparent', 'color': 'var(--app-secondary-foreground)',
+    'cursor': 'pointer', 'outline': 'none', 'transition': 'background 120ms cubic-bezier(.4, 0, .2, 1), color 120ms cubic-bezier(.4, 0, .2, 1)',
+  },
+  '.mkSpace > svg': { 'display': 'block' },
+  '.mkSpace:hover': { 'background': 'var(--app-ghost-button-hover-background)', 'color': 'var(--app-primary-foreground)' },
+  '.mkSpace:focus:not(:focus-visible):not(:hover)': { 'background': 'transparent', 'color': 'var(--app-secondary-foreground)' },
+  '.mkSpace:focus-visible': { 'box-shadow': '0 0 0 2px rgba(130, 169, 245, 0.5)' },
   '.mkTokens:hover': { 'background': 'rgba(255, 255, 255, 0.06)', 'color': '#dfe3ea' },
   // prompt reveal: pinned only while you scroll up
   'html[data-mk-reveal] [class*="message_"][class*="stickyHeader_"]': {
@@ -783,6 +797,79 @@ const usageRules = {
   '.mkUFriction > div': { 'display': 'flex', 'flex-direction': 'column', 'gap': '2px', 'padding': '8px 10px', 'border-radius': '8px', 'background': 'rgba(255, 255, 255, 0.03)' },
   '.mkUFriction b': { 'font': '500 16px/1.2 Geist, sans-serif', 'color': '#eceef2', 'font-variant-numeric': 'tabular-nums' },
   '.mkUFriction span': { 'font-size': '10.5px', 'color': '#7c8492' },
+  // Skills section (chat-extras section 15): header borrowed from Claude's, card like the account card
+  '.mkSkHead': { 'flex-shrink': '0' },
+  '.mkSkHead > .mkSkCount': {
+    'margin-left': 'auto', 'padding': '0 7px', 'height': '18px', 'display': 'inline-flex', 'align-items': 'center', 'border-radius': '999px',
+    'background': 'rgba(255, 255, 255, 0.05)', 'color': 'var(--mk-fg-faint)', 'font': "500 10.5px/1 'Geist Mono', 'JetBrains Mono', Menlo, monospace",
+    'font-variant-numeric': 'tabular-nums',
+  },
+  '.mkSkHead > .mkSkCount:empty': { 'display': 'none' },
+  '.mkSkBody': {
+    'display': 'flex', 'flex-direction': 'column', 'flex-shrink': '0', 'max-height': 'min(60vh, 480px)', 'overflow': 'hidden',
+    'background': 'var(--mk-glass)', 'border': '1px solid var(--mk-edge)', 'border-radius': 'var(--mk-r-16)',
+    'box-shadow': 'var(--mk-hi), var(--mk-shadow-sm)', 'backdrop-filter': 'var(--mk-blur)', '-webkit-backdrop-filter': 'var(--mk-blur)',
+  },
+  '.mkSkBody[hidden]': { 'display': 'none !important' },
+  '.mkSkSearch': {
+    'display': 'flex', 'align-items': 'center', 'gap': '8px', 'flex': 'none', 'height': '40px', 'padding': '0 12px',
+    'border-bottom': '1px solid rgba(255, 255, 255, 0.06)', 'color': 'var(--mk-fg-faint)', 'cursor': 'text',
+  },
+  '.mkSkSearch > svg': { 'flex': 'none' },
+  '.mkSkSearch > input': {
+    'flex': '1', 'min-width': '0', 'height': '100%', 'padding': '0', 'border': '0', 'outline': 'none', 'background': 'transparent',
+    'color': 'var(--mk-fg)', 'font': 'inherit', 'font-size': '12.5px',
+  },
+  '.mkSkSearch > input::placeholder': { 'color': 'var(--mk-fg-faint)' },
+  '.mkSkSearch:focus-within': { 'color': 'var(--mk-accent-soft)' },
+  '.mkSkList': { 'flex': '1', 'min-height': '0', 'overflow-y': 'auto', 'padding': '4px 6px 6px', 'scrollbar-width': 'thin' },
+  '.mkSkGroup': {
+    'display': 'flex', 'align-items': 'center', 'gap': '6px', 'height': '28px', 'padding': '0 8px', 'margin-top': '4px',
+    'font-size': '11px', 'font-weight': '500', 'letter-spacing': '0.04em', 'text-transform': 'uppercase', 'color': 'var(--mk-fg-faint)',
+  },
+  '.mkSkGroup > em': { 'font-style': 'normal', 'font-family': "'Geist Mono', 'JetBrains Mono', Menlo, monospace", 'letter-spacing': '0' },
+  '.mkSkItem': { 'border-radius': 'var(--mk-r-10)', 'transition': 'background 120ms cubic-bezier(.4, 0, .2, 1)' },
+  '.mkSkItem[data-open]': { 'background': 'rgba(255, 255, 255, 0.04)', 'box-shadow': 'inset 0 0 0 1px rgba(255, 255, 255, 0.05)', 'margin': '2px 0' },
+  '.mkSkRow': {
+    'display': 'flex', 'align-items': 'center', 'gap': '10px', 'width': '100%', 'height': '34px', 'padding': '0 8px 0 10px',
+    'appearance': 'none', 'border': '0', 'border-radius': 'var(--mk-r-10)', 'background': 'transparent', 'color': 'var(--mk-fg-body)',
+    'font': 'inherit', 'text-align': 'left', 'cursor': 'pointer', 'outline': 'none', 'transition': 'background 120ms cubic-bezier(.4, 0, .2, 1), color 120ms cubic-bezier(.4, 0, .2, 1)',
+  },
+  '.mkSkRow:hover': { 'background': 'var(--mk-glass-hover)', 'color': 'var(--mk-fg)' },
+  '.mkSkItem[data-open] > .mkSkRow': { 'color': 'var(--mk-fg)' },
+  '.mkSkItem[data-open] > .mkSkRow:hover': { 'background': 'transparent' },
+  '.mkSkRow:focus-visible, .mkSkAct:focus-visible': { 'box-shadow': '0 0 0 2px rgba(130, 169, 245, 0.5)' },
+  '.mkSkBolt': { 'flex': 'none', 'display': 'grid', 'place-items': 'center', 'width': '15px', 'color': '#f59f4c' },
+  '.mkSkName': {
+    'flex': '1', 'min-width': '0', 'overflow': 'hidden', 'text-overflow': 'ellipsis', 'white-space': 'nowrap',
+    'font': "500 12px/1 'Geist Mono', 'JetBrains Mono', Menlo, monospace",
+  },
+  '.mkSkN': {
+    'flex': 'none', 'font': "500 10.5px/16px 'Geist Mono', 'JetBrains Mono', Menlo, monospace", 'font-style': 'normal', 'padding': '0 6px',
+    'border-radius': '999px', 'background': 'rgba(255, 255, 255, 0.05)', 'color': 'var(--mk-fg-faint)', 'font-variant-numeric': 'tabular-nums',
+  },
+  '.mkSkChev': { 'flex': 'none', 'display': 'grid', 'place-items': 'center', 'color': 'var(--mk-fg-faint)', 'transition': 'transform 180ms cubic-bezier(.4, 0, .2, 1)' },
+  '.mkSkItem[data-open] .mkSkChev': { 'transform': 'rotate(90deg)' },
+  '.mkSkDetail': { 'padding': '0 6px 6px', 'animation': 'mkFade 180ms cubic-bezier(.4, 0, .2, 1)' },
+  '.mkSkDesc': { 'margin': '0 4px 8px 29px', 'font-size': '11.5px', 'line-height': '1.5', 'color': 'var(--mk-fg-muted)' },
+  '.mkSkActs': { 'list-style': 'none', 'margin': '0', 'padding': '0', 'display': 'flex', 'flex-direction': 'column', 'gap': '2px' },
+  '.mkSkAct': {
+    'display': 'flex', 'align-items': 'center', 'gap': '10px', 'width': '100%', 'padding': '7px 8px 7px 29px', 'appearance': 'none', 'border': '0',
+    'border-radius': 'var(--mk-r-8)', 'background': 'transparent', 'color': 'var(--mk-fg-body)', 'font': 'inherit', 'text-align': 'left',
+    'cursor': 'pointer', 'outline': 'none', 'transition': 'background 120ms cubic-bezier(.4, 0, .2, 1)',
+  },
+  '.mkSkAct:hover': { 'background': 'var(--mk-glass-hover)' },
+  '.mkSkActTx': { 'flex': '1', 'min-width': '0', 'display': 'flex', 'flex-direction': 'column', 'gap': '2px' },
+  '.mkSkActTx > b': { 'font-size': '12.5px', 'font-weight': '500', 'color': 'var(--mk-fg)' },
+  '.mkSkActTx > small': { 'font-size': '11px', 'line-height': '1.4', 'color': 'var(--mk-fg-faint)' },
+  '.mkSkAdd': {
+    'flex': 'none', 'display': 'grid', 'place-items': 'center', 'width': '24px', 'height': '24px', 'border-radius': '7px',
+    'color': 'var(--mk-fg-faint)', 'transition': 'background 120ms cubic-bezier(.4, 0, .2, 1), color 120ms cubic-bezier(.4, 0, .2, 1)',
+  },
+  '.mkSkAct:hover > .mkSkAdd': { 'background': 'color-mix(in srgb, var(--mk-accent) 16%, transparent)', 'color': 'var(--mk-accent-soft)' },
+  '.mkSkAct[data-added] > .mkSkAdd': { 'background': 'rgba(76, 175, 122, 0.16)', 'color': '#6fcf97' },
+  '.mkSkEmpty': { 'margin': '0', 'padding': '14px 10px', 'font-size': '11.5px', 'line-height': '1.5', 'color': 'var(--mk-fg-faint)' },
+  '.mkSkEmpty > code': { 'font-family': "'Geist Mono', 'JetBrains Mono', Menlo, monospace", 'font-size': '11px', 'color': 'var(--mk-fg-muted)' },
   '.mkUNote': { 'margin': '10px 0 0', 'font-size': '11px', 'line-height': '1.5', 'color': '#7c8492' },
   '.mkUFoot': { 'margin': '2px 2px 0', 'font-size': '10.5px', 'line-height': '1.5', 'color': '#5f6571' },
 };
