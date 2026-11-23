@@ -1,5 +1,5 @@
 // Milo Kit: tags the window with its title (<html data-mk-title="...">) so the title bar can show the avatar of
-// this VS Code profile. Each profile sets its own window.title (CME, Bonat, ...). Loaded by Custom UI Style.
+// this VS Code profile. Each profile sets its own window.title (Work, Personal, ...). Loaded by Custom UI Style.
 (() => {
   if (window.__mkProfileMark) return;
   window.__mkProfileMark = 1;

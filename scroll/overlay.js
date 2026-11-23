@@ -53,6 +53,15 @@ function scrollType(hook) {
   return '';
 }
 
+// Session Deck (Tools/Session Deck) writes state.json about once a second while it runs.
+function deckAccepting() {
+  try {
+    var st = JSON.parse(readText(ObjC.unwrap($.NSHomeDirectory()) +
+      '/Library/Application Support/SessionDeck/state.json') || '{}');
+    return st.accepting === true && Date.now() - (st.updatedAt || 0) < 5000;
+  } catch (e) { return false; }
+}
+
 function readStdin() {
   var data = $.NSFileHandle.fileHandleWithStandardInput.readDataToEndOfFile;
   var s = $.NSString.alloc.initWithDataEncoding(data, $.NSUTF8StringEncoding);
@@ -76,6 +85,10 @@ function run(argv) {
   if (!PHRASES[type]) return;
   // events: which kinds of scroll to show (Milo Kit settings). Missing = all.
   if (!hook.test && Array.isArray(cfg.events) && cfg.events.indexOf(type) < 0) return;
+
+  // Session Deck is up (you are away from VS Code): it shows finishes, questions and permission
+  // prompts itself and turns into Milo's pop when every session is done. Only compaction stays here.
+  if (!hook.test && type !== 'limit' && deckAccepting()) return;
 
   // Claude re-sends idle_prompt every minute while you are away. Stay quiet for an hour after "complete".
   var session = String(hook.session_id || '').replace(/[^\w-]/g, '');

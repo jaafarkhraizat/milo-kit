@@ -490,7 +490,7 @@ const typeRules = {
     // hidden until the bubble is hovered (or a button has keyboard focus); always laid out, so they appear in place
     'opacity': '0', 'transition': 'opacity 120ms cubic-bezier(.4, 0, .2, 1)',
   },
-  // hover and keyboard focus both show the pill at once (no delay: Jaafar wants it immediate)
+  // hover and keyboard focus both show the pill at once (no delay, it shows immediately)
   '[data-mk-bubble-row]:hover > [data-message-actions]': { 'opacity': '1' },
   '[data-mk-bubble-row]:focus-within > [data-message-actions]': { 'opacity': '1' },
   // Claude ships a solid copy icon next to an outline bookmark; both are redrawn as matching RemixIcon line glyphs

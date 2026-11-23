@@ -519,7 +519,6 @@
     const d = snapshot();
     const working = d.agents.filter((a) => a.state === 'working' || a.state === 'waiting').length;
     const waiting = d.agents.some((a) => a.state === 'waiting');
-    const doneTodos = d.todos.filter((t) => t.state === 'completed').length;
     const jobsRunning = d.jobs.filter((j) => j.state === 'running').length;
 
     // agents chip, left of the mode button in the message box footer
@@ -554,13 +553,13 @@
         usage.after(badge);
       }
       if (badge) {
-        const bits = [d.todos.length ? doneTodos + '/' + d.todos.length + ' tasks' : '0 tasks', plural(working, 'agent')];
+        // agents always; jobs only while running. Tasks stay in the details panel, not the badge.
+        const bits = [plural(working, 'agent')];
         if (jobsRunning) bits.push(plural(jobsRunning, 'job'));
         badge.dataset.state = waiting ? 'waiting' : working || jobsRunning ? 'working' : 'idle';
-        setHtml(badge, TASK_ICON + '<span>' + bits.join(' · ') + '</span>');
-        const openTodos = d.todos.length - doneTodos;
-        badge.disabled = !(openTodos || working || jobsRunning);
-        badge.title = badge.disabled ? 'Nothing running' : 'Tasks and agents. Click for details';
+        setHtml(badge, AGENT_ICON + '<span>' + bits.join(' · ') + '</span>');
+        badge.disabled = !(working || jobsRunning);
+        badge.title = badge.disabled ? 'Nothing running' : 'Agents and jobs. Click for details';
       }
     }
     if (panel && !panel.hidden) { if (panelAnchor && panelAnchor.disabled) panel.hidden = true; else paintPanel(d); }

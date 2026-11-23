@@ -78,7 +78,7 @@ Your own settings, your avatar initials and everything you chose in Milo Kit set
 **When to update**
 
 - When the kit has a new version. See the [commit history](https://github.com/jaafarkhraizat/milo-kit/commits/main).
-- After every **Claude Code update**. Claude Code updates can rename the parts the kit restyles. Running the install again brings those parts back.
+- When the kit stops showing after a **Claude Code update**. After any VS Code or Claude Code update, the kit re-applies itself on the next start (VS Code restarts once). If the update renamed the parts the kit restyles, you get a "Milo Kit is not applied" warning instead. Running the install again brings those parts back.
 
 ---
 

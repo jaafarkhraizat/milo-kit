@@ -25,6 +25,8 @@ if grep -rIl -E "/Users/|Archive Zero|iCloud Drive|jaafarkhraizat@|sk-ant-|ghp_"
   echo "Refusing to publish: personal data in the files above." >&2
   exit 1
 fi
+# commits carry the GitHub noreply address, never a personal email
+git -C "$WORK" config user.email "24931222+jaafarkhraizat@users.noreply.github.com"
 git -C "$WORK" add -A
 if git -C "$WORK" diff --cached --quiet; then
   echo "Nothing changed."

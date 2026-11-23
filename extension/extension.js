@@ -344,7 +344,54 @@ function startSkills(context) {
   context.subscriptions.push({ dispose: () => watchers.forEach((w) => w.close()) });
 }
 
+// A VS Code or Claude Code update replaces the files Custom UI Style patched, and Custom
+// UI Style then only asks Yes/No, so a missed prompt leaves the kit off. Re-apply on our
+// own, once per VS Code + extension versions, so a patch that no longer matches cannot
+// restart VS Code in a loop.
+function ensureApplied() {
+  const os = require('os');
+  if (!vscode.extensions.getExtension('subframe7536.custom-ui-style')) return;
+  const read = (p) => { try { return fs.readFileSync(p, 'utf8'); } catch (e) { return ''; } };
+  const bak = (p) => p.replace(/(\.[^./]+)$/, '.custom-ui-style$1');
+  const missing = [];
+  const wb = ['electron-browser', 'electron-sandbox']
+    .map((d) => path.join(vscode.env.appRoot, 'out', 'vs', 'code', d, 'workbench'))
+    .find((d) => fs.existsSync(d));
+  if (wb && !fs.existsSync(path.join(wb, 'workbench.custom-ui-style.html'))) missing.push('workbench');
+  const patches = vscode.workspace.getConfiguration('custom-ui-style').get('extensions.config') || {};
+  const versions = [vscode.version];
+  for (const [id, list] of Object.entries(patches)) {
+    const ext = vscode.extensions.getExtension(id);
+    if (!ext || !Array.isArray(list)) continue;
+    versions.push(id + '@' + ext.packageJSON.version);
+    for (const p of list) {
+      if (!p || !p.filePath) continue;
+      const file = path.join(ext.extensionPath, p.filePath);
+      if (!fs.existsSync(bak(file))) missing.push(id + '/' + p.filePath);
+      else if (String(p.replace || '').includes('/*mk-chat*/') && !read(file).includes('/*mk-chat*/')) missing.push(id + '/' + p.filePath);
+    }
+  }
+  if (!missing.length) return;
+  const state = path.join(os.homedir(), '.milo-kit', 'autoreload.json');
+  const key = versions.join('|');
+  let last = {};
+  try { last = JSON.parse(read(state)); } catch (e) { /* first run */ }
+  if (last.key === key) {
+    // Several windows start together: only warn when the re-apply is not in flight.
+    if (Date.now() - last.at > 60000) {
+      vscode.window.showWarningMessage('Milo Kit is not applied (' + missing.join(', ') + '). Run "Custom UI Style: Reload". If it stays off, run the installer again.');
+    }
+    return;
+  }
+  try {
+    fs.mkdirSync(path.dirname(state), { recursive: true });
+    fs.writeFileSync(state, JSON.stringify({ key, at: Date.now() }));
+  } catch (e) { /* the state file only prevents loops */ }
+  vscode.commands.executeCommand('custom-ui-style.reload').then(undefined, () => {});
+}
+
 function activate(context) {
+  try { ensureApplied(); } catch (e) { /* never block the rest of the extension */ }
   context.subscriptions.push(vscode.commands.registerCommand('miloKit.openSettings', () => open(context)));
   context.subscriptions.push(vscode.commands.registerCommand('miloKit.openSpace', openSpace));
   startSkills(context);
